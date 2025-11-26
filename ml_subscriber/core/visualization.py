@@ -1,5 +1,6 @@
 from typing import List
-from .arxiv_fetcher import Article
+
+from .models import Article
 
 class ArticleVisualizer:
     """Visualizes articles in different formats."""
@@ -12,13 +13,15 @@ class ArticleVisualizer:
             articles: A list of Article objects.
             output_filename: The name of the output HTML file.
         """
-        html_content = "<html><head><title>ArXiv Articles</title></head><body>"
-        html_content += "<h1>ArXiv Articles</h1>"
+        html_content = "<html><head><title>ML/DL Articles</title></head><body>"
+        html_content += "<h1>ML/DL Articles</h1>"
         for article in articles:
             html_content += f"<h2>{article.title}</h2>"
-            html_content += f"<p><strong>Authors:</strong> {', '.join(article.authors)}</p>"
+            authors = ', '.join(article.authors) if article.authors else "Unknown"
+            html_content += f"<p><strong>Authors:</strong> {authors}</p>"
             html_content += f"<p>{article.summary}</p>"
-            html_content += f"<p><a href='{article.pdf_link}'>Read More</a></p>"
+            if article.pdf_link:
+                html_content += f"<p><a href='{article.pdf_link}'>Read More</a></p>"
             html_content += "<hr>"
         html_content += "</body></html>"
 

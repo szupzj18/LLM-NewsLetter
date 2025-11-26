@@ -2,7 +2,8 @@
 import unittest
 from unittest.mock import patch, Mock
 import requests
-from ml_subscriber.core.arxiv_fetcher import ArxivFetcher, Article
+from ml_subscriber.core.arxiv_fetcher import ArxivFetcher
+from ml_subscriber.core.models import Article
 
 class TestArxivFetcher(unittest.TestCase):
     """Tests for the ArxivFetcher class."""
@@ -28,7 +29,7 @@ class TestArxivFetcher(unittest.TestCase):
         mock_get.return_value = mock_response
 
         fetcher = ArxivFetcher()
-        articles = fetcher.fetch_articles("cat:cs.AI")
+        articles = fetcher.fetch_articles("cat:cs.AI", max_results=1)
 
         self.assertEqual(len(articles), 1)
         self.assertEqual(articles[0].title, "Test Title 1")

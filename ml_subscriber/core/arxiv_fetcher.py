@@ -1,19 +1,10 @@
 
 import requests
 import xml.etree.ElementTree as ET
-from dataclasses import dataclass, field
-from typing import List, Dict
+from typing import List
 
-@dataclass
-class Article:
-    """Represents a research article."""
-    title: str
-    authors: List[str]
-    summary: str
-    link: str
-    published_date: str
-    pdf_link: str
-    metadata: Dict[str, any] = field(default_factory=dict)
+from .models import Article
+
 
 class ArxivFetcher:
     """Fetches and parses articles from ArXiv."""
@@ -89,6 +80,7 @@ class ArxivFetcher:
                     link=link,
                     published_date=published_date,
                     pdf_link=pdf_link,
+                    metadata={"source": "arxiv"},
                 )
             )
         return articles

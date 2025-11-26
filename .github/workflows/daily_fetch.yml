@@ -30,9 +30,11 @@ jobs:
           pip install -r requirements.txt
 
       # 4. 运行脚本
-      - name: Run fetch script
+      - name: Run fetch scripts for all sources
         env:
           # 从 GitHub Secrets 中读取配置并设置为环境变量
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-        run: python3 main.py --fetch
+        run: |
+          python3 main.py --fetch --source arxiv --json-output output/arxiv_articles.json
+          python3 main.py --fetch --source hn --json-output output/hn_articles.json

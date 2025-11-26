@@ -4,7 +4,7 @@ import json
 import os
 import tempfile
 from ml_subscriber.core.storage import JsonStorage
-from ml_subscriber.core.arxiv_fetcher import Article
+from ml_subscriber.core.models import Article
 
 class TestJsonStorage(unittest.TestCase):
     """Tests for the JsonStorage class."""

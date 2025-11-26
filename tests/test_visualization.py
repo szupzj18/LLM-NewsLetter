@@ -2,7 +2,7 @@ import unittest
 import os
 import tempfile
 from ml_subscriber.core.visualization import ArticleVisualizer
-from ml_subscriber.core.arxiv_fetcher import Article
+from ml_subscriber.core.models import Article
 
 class TestArticleVisualizer(unittest.TestCase):
     """Tests for the ArticleVisualizer class."""
@@ -35,7 +35,7 @@ class TestArticleVisualizer(unittest.TestCase):
 
         with open(self.temp_filename, 'r', encoding='utf-8') as f:
             content = f.read()
-            self.assertIn("<h1>ArXiv Articles</h1>", content)
+            self.assertIn("<h1>ML/DL Articles</h1>", content)
             self.assertIn("<h2>Test Title 1</h2>", content)
             self.assertIn("<p><strong>Authors:</strong> Author 1</p>", content)
             self.assertIn("<p>Summary 1</p>", content)
@@ -49,7 +49,7 @@ class TestArticleVisualizer(unittest.TestCase):
 
         with open(self.temp_filename, 'r', encoding='utf-8') as f:
             content = f.read()
-            self.assertIn("<h1>ArXiv Articles</h1>", content)
+            self.assertIn("<h1>ML/DL Articles</h1>", content)
             self.assertNotIn("<h2>", content)
 
 if __name__ == "__main__":

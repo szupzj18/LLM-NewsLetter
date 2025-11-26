@@ -1,7 +1,8 @@
 
 import requests
 import html
-from .arxiv_fetcher import Article
+
+from .models import Article
 
 class TelegramNotifier:
     """
@@ -41,13 +42,28 @@ class TelegramNotifier:
         """
         Formats a list of articles into a single HTML message string.
         """
-        message = "✨ <b>New ML/DL Papers Found!</b> ✨\n\n"
+        source = self._infer_source(articles)
+        heading = self._heading_for_source(source)
+        message = f"{heading}\n\n"
         for article in articles:
             title = self._escape_html(article.title)
-            authors = self._escape_html(', '.join(article.authors))
+            authors_text = ', '.join(article.authors) if article.authors else "Unknown"
+            authors = self._escape_html(authors_text)
             message += f'📄 <b><a href="{article.link}">{title}</a></b>\n'
             message += f"👤 <i>{authors}</i>\n\n"
         return message
+
+    def _infer_source(self, articles: list[Article]) -> str:
+        if not articles:
+            return "unknown"
+        return articles[0].metadata.get("source", "unknown")
+
+    def _heading_for_source(self, source: str) -> str:
+        if source == "hn":
+            return "🚀 <b>Hacker News 热门讨论</b>"
+        if source == "arxiv":
+            return "✨ <b>New ML/DL Papers Found!</b> ✨"
+        return "📢 <b>New Articles</b>"
 
     def _send_message(self, message: str):
         """

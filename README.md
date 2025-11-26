@@ -1,15 +1,16 @@
 
 # ML/DL 信息订阅系统
 
-这是一个用于订阅和追踪机器学习（ML）与深度学习（DL）领域最新信息的系统。当前版本可以从 ArXiv 上获取最新的研究论文，并将其保存为结构化的 JSON 文件，同时通过 Telegram 发送新文章通知。
+这是一个用于订阅和追踪机器学习（ML）与深度学习（DL）领域最新信息的系统。系统目前支持从 ArXiv 和 Hacker News 获取最新内容，将其保存为结构化 JSON 文件，并可通过 Telegram 发送新文章通知。
 
 ## 功能特性
 
 - 从 ArXiv API 爬取指定查询条件的最新论文。
-- 解析论文的 XML 数据，提取标题、作者、摘要、发布日期和 PDF 链接。
+- 从 Hacker News 获取热门资讯，并映射为统一的文章数据结构。
+- 解析数据，提取标题、作者、摘要、发布日期、链接等核心信息。
 - **通过 Telegram Bot 发送新文章的即时通知**。
-- 将爬取并解析后的文章列表存储在本地的 JSON 文件中。
-- 将爬取到的文章可视化为 HTML 文件。
+- 将获取的文章列表存储在本地 JSON 文件中。
+- 将文章可视化为 HTML 文件，便于浏览。
 
 ## 安装与运行
 
@@ -43,18 +44,21 @@
     运行以下命令来获取最新的文章。如果配置了 Telegram，它会自动发送新文章的通知。
 
     ```bash
-    python3 main.py --fetch
+    python3 main.py --fetch --source arxiv
+    python3 main.py --fetch --source hn --json-output output/hn_articles.json
     ```
 
 5.  **可视化文章**
 
-    使用 `--visualize` 参数来生成 HTML 可视化文件：
+    使用 `--visualize` 参数来生成 HTML 可视化文件（默认将结果写入 `output/articles.html`）：
 
     ```bash
-    python3 main.py --visualize --output articles.html
+    python3 main.py --visualize --output output/articles.html
     ```
 
-    这会读取 `articles.json` 文件并生成一个名为 `articles.html` 的 HTML 文件。
+    同理，可通过 `--source hn` 获取 Hacker News 的热门内容，也可以结合 `--json-output` 将不同来源保存到各自的文件。
+
+    这会读取 `output/articles.json` 文件并生成一个名为 `output/articles.html` 的 HTML 文件。若需更改 JSON 存储位置，可配合 `--json-output` 参数指定。
 
 
 ## 如何运行测试
@@ -74,6 +78,8 @@ python3 -m unittest discover tests
 │   └── core/
 │       ├── __init__.py
 │       ├── arxiv_fetcher.py  # ArXiv 爬取与解析模块
+│       ├── hn_fetcher.py     # Hacker News 获取模块
+│       ├── models.py         # Article 数据模型与协议
 │       ├── storage.py        # 数据存储模块 (JSON)
 │       ├── notification.py   # Telegram 通知模块
 │       └── visualization.py  # 文章可视化模块
@@ -92,7 +98,7 @@ python3 -m unittest discover tests
 
 这个 MVP 版本为后续的开发奠定了基础。未来的工作可以包括：
 
-- **增加更多信息源**：如 Hacker News、Twitter、技术博客 RSS 等。
+- **继续扩展信息源**：在现有 ArXiv 与 Hacker News 基础上，增加 Twitter、技术博客 RSS 等。
 - **实现真正的数据库**：使用如 MongoDB 或 PostgreSQL 替换 JSON 文件存储。
 - **完善订阅与通知系统**：
     - ✅ **通过即时通讯工具接收通知** (已通过 Telegram 实现)

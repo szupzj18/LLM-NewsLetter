@@ -1,8 +1,9 @@
 
 import json
 from typing import List
-from .arxiv_fetcher import Article
 from dataclasses import asdict
+
+from .models import Article
 
 class JsonStorage:
     """Handles storage of articles in a JSON file."""
