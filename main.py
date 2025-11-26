@@ -11,11 +11,27 @@ from ml_subscriber.core.notification import TelegramNotifier
 load_dotenv()  # 加载 .env 文件中的环境变量
 
 
-
 def get_fetcher_for_source(source: str):
     if source == "hn":
         return HackerNewsFetcher()
     return ArxivFetcher()
+
+
+def send_notifications(articles):
+    bot_token = os.environ.get("TELEGRAM_BOT_TOKEN")
+    chat_id = os.environ.get("TELEGRAM_CHAT_ID")
+
+    if not bot_token or not chat_id:
+        print("Telegram credentials not found in environment variables.")
+        return
+
+    notifier = TelegramNotifier(bot_token, chat_id)
+    if articles:
+        print("Sending notification to Telegram...")
+    else:
+        print("No new articles. Sending reminder to Telegram...")
+    notifier.send(articles)
+    print("Notification sent.")
 
 
 def main():
@@ -43,7 +59,8 @@ def main():
         articles = fetcher.fetch_articles(default_query, max_results=5)
 
         if not articles:
-            print("未能获取到任何文章，程序退出。")
+            print("未能获取到任何文章，仍会发送提示。")
+            send_notifications([])
             return
 
         print(f"成功获取到 {len(articles)} 篇文章，来源：{args.source}。")
@@ -70,18 +87,10 @@ def main():
 
         # 3. 发送通知
         if new_articles:
-            bot_token = os.environ.get("TELEGRAM_BOT_TOKEN")
-            chat_id = os.environ.get("TELEGRAM_CHAT_ID")
-
-            if bot_token and chat_id:
-                print("Sending notification to Telegram...")
-                notifier = TelegramNotifier(bot_token, chat_id)
-                notifier.send(new_articles)
-                print("Notification sent.")
-            else:
-                print("Telegram credentials not found in environment variables.")
+            send_notifications(new_articles)
         else:
-            print("No new articles to notify.")
+            print("No new articles to notify; sending reminder.")
+            send_notifications([])
 
     if args.visualize:
         storage = JsonStorage()

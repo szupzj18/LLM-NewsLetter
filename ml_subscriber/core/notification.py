@@ -29,6 +29,7 @@ class TelegramNotifier:
             articles: A list of Article objects.
         """
         if not articles:
+            self._send_no_article_reminder()
             return
 
         message = self._format_message(articles)
@@ -64,6 +65,10 @@ class TelegramNotifier:
         if source == "arxiv":
             return "✨ <b>New ML/DL Papers Found!</b> ✨"
         return "📢 <b>New Articles</b>"
+
+    def _send_no_article_reminder(self):
+        message = "📭 <b>No new articles this time.</b>"
+        self._send_message(message)
 
     def _send_message(self, message: str):
         """

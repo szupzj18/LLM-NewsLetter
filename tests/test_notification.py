@@ -83,9 +83,23 @@ class TestTelegramNotifier(unittest.TestCase):
 
     @patch('requests.post')
     def test_send_no_articles(self, mock_post):
-        """Test that send method does not call requests.post if no articles are provided."""
+        """Test that send method sends a reminder when no articles are provided."""
+        mock_response = MagicMock()
+        mock_response.raise_for_status.return_value = None
+        mock_post.return_value = mock_response
+
         self.notifier.send([])
-        mock_post.assert_not_called()
+
+        expected_payload = {
+            'chat_id': self.chat_id,
+            'text': "📭 <b>No new articles this time.</b>",
+            'parse_mode': 'HTML'
+        }
+
+        mock_post.assert_called_once_with(
+            f"https://api.telegram.org/bot{self.bot_token}/sendMessage",
+            json=expected_payload
+        )
 
 if __name__ == '__main__':
     unittest.main()
