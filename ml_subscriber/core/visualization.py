@@ -1,6 +1,9 @@
+import html
 from typing import List
+from urllib.parse import quote
 
 from .models import Article
+
 
 class ArticleVisualizer:
     """Visualizes articles in different formats."""
@@ -16,12 +19,19 @@ class ArticleVisualizer:
         html_content = "<html><head><title>ML/DL Articles</title></head><body>"
         html_content += "<h1>ML/DL Articles</h1>"
         for article in articles:
-            html_content += f"<h2>{article.title}</h2>"
+            # Escape all user-provided content to prevent XSS
+            safe_title = html.escape(article.title)
             authors = ', '.join(article.authors) if article.authors else "Unknown"
-            html_content += f"<p><strong>Authors:</strong> {authors}</p>"
-            html_content += f"<p>{article.summary}</p>"
+            safe_authors = html.escape(authors)
+            safe_summary = html.escape(article.summary)
+
+            html_content += f"<h2>{safe_title}</h2>"
+            html_content += f"<p><strong>Authors:</strong> {safe_authors}</p>"
+            html_content += f"<p>{safe_summary}</p>"
             if article.pdf_link:
-                html_content += f"<p><a href='{article.pdf_link}'>Read More</a></p>"
+                # URL encode the link for safe href attribute
+                safe_link = html.escape(article.pdf_link, quote=True)
+                html_content += f'<p><a href="{safe_link}">Read More</a></p>'
             html_content += "<hr>"
         html_content += "</body></html>"
 

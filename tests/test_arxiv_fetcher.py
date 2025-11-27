@@ -49,6 +49,98 @@ class TestArxivFetcher(unittest.TestCase):
 
         self.assertEqual(len(articles), 0)
 
+    @patch("ml_subscriber.core.arxiv_fetcher.requests.get")
+    def test_fetch_articles_missing_title(self, mock_get):
+        """Test handling of entries with missing title."""
+        mock_response = Mock()
+        mock_response.status_code = 200
+        mock_response.text = """
+        <feed xmlns=\"http://www.w3.org/2005/Atom\">
+          <entry>
+            <id>http://example.com/1</id>
+            <!-- title is missing -->
+            <summary>Test Summary</summary>
+            <author><name>Author 1</name></author>
+            <published>2023-10-27T10:00:00Z</published>
+          </entry>
+        </feed>
+        """
+        mock_get.return_value = mock_response
+
+        fetcher = ArxivFetcher()
+        articles = fetcher.fetch_articles("cat:cs.AI", max_results=1)
+
+        # Entry with missing title should be skipped
+        self.assertEqual(len(articles), 0)
+
+    @patch("ml_subscriber.core.arxiv_fetcher.requests.get")
+    def test_fetch_articles_missing_link(self, mock_get):
+        """Test handling of entries with missing link/id."""
+        mock_response = Mock()
+        mock_response.status_code = 200
+        mock_response.text = """
+        <feed xmlns=\"http://www.w3.org/2005/Atom\">
+          <entry>
+            <!-- id is missing -->
+            <title>Test Title</title>
+            <summary>Test Summary</summary>
+            <author><name>Author 1</name></author>
+            <published>2023-10-27T10:00:00Z</published>
+          </entry>
+        </feed>
+        """
+        mock_get.return_value = mock_response
+
+        fetcher = ArxivFetcher()
+        articles = fetcher.fetch_articles("cat:cs.AI", max_results=1)
+
+        # Entry with missing link should be skipped
+        self.assertEqual(len(articles), 0)
+
+    @patch("ml_subscriber.core.arxiv_fetcher.requests.get")
+    def test_fetch_articles_missing_optional_fields(self, mock_get):
+        """Test handling of entries with missing optional fields (summary, published, authors)."""
+        mock_response = Mock()
+        mock_response.status_code = 200
+        mock_response.text = """
+        <feed xmlns=\"http://www.w3.org/2005/Atom\">
+          <entry>
+            <id>http://example.com/1</id>
+            <title>Test Title</title>
+            <!-- summary, published, and authors are missing -->
+          </entry>
+        </feed>
+        """
+        mock_get.return_value = mock_response
+
+        fetcher = ArxivFetcher()
+        articles = fetcher.fetch_articles("cat:cs.AI", max_results=1)
+
+        # Entry should still be parsed with empty optional fields
+        self.assertEqual(len(articles), 1)
+        self.assertEqual(articles[0].title, "Test Title")
+        self.assertEqual(articles[0].summary, "")
+        self.assertEqual(articles[0].published_date, "")
+        self.assertEqual(articles[0].authors, [])
+        self.assertEqual(articles[0].pdf_link, "")
+
+    @patch("ml_subscriber.core.arxiv_fetcher.requests.get")
+    def test_fetch_articles_empty_feed(self, mock_get):
+        """Test handling of an empty feed."""
+        mock_response = Mock()
+        mock_response.status_code = 200
+        mock_response.text = """
+        <feed xmlns=\"http://www.w3.org/2005/Atom\">
+        </feed>
+        """
+        mock_get.return_value = mock_response
+
+        fetcher = ArxivFetcher()
+        articles = fetcher.fetch_articles("cat:cs.AI", max_results=1)
+
+        self.assertEqual(len(articles), 0)
+
+
 if __name__ == "__main__":
     unittest.main()
 

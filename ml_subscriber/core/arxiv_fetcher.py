@@ -51,26 +51,38 @@ class ArxivFetcher:
         root = ET.fromstring(xml_data)
         articles = []
         for entry in root.findall("{http://www.w3.org/2005/Atom}entry"):
-            title = entry.find("{http://www.w3.org/2005/Atom}title").text.strip()
-            link = entry.find("{http://www.w3.org/2005/Atom}id").text.strip()
-            summary = entry.find("{http://www.w3.org/2005/Atom}summary").text.strip()
-            published_date = entry.find("{http://www.w3.org/2005/Atom}published").text
+            # Safely extract text with None checks
+            title_elem = entry.find("{http://www.w3.org/2005/Atom}title")
+            link_elem = entry.find("{http://www.w3.org/2005/Atom}id")
+            summary_elem = entry.find("{http://www.w3.org/2005/Atom}summary")
+            published_elem = entry.find("{http://www.w3.org/2005/Atom}published")
 
-            authors = [
-                author.find("{http://www.w3.org/2005/Atom}name").text
-                for author in entry.findall("{http://www.w3.org/2005/Atom}author")
-            ]
+            # Skip entries with missing required fields
+            if title_elem is None or title_elem.text is None:
+                continue
+            if link_elem is None or link_elem.text is None:
+                continue
+
+            title = title_elem.text.strip()
+            link = link_elem.text.strip()
+            summary = summary_elem.text.strip() if summary_elem is not None and summary_elem.text else ""
+            published_date = published_elem.text if published_elem is not None and published_elem.text else ""
+
+            authors = []
+            for author in entry.findall("{http://www.w3.org/2005/Atom}author"):
+                name_elem = author.find("{http://www.w3.org/2005/Atom}name")
+                if name_elem is not None and name_elem.text:
+                    authors.append(name_elem.text)
 
             pdf_link = ""
             for link_element in entry.findall("{http://www.w3.org/2005/Atom}link"):
                 if link_element.get("title") == "pdf":
-                    pdf_link = link_element.get("href")
+                    pdf_link = link_element.get("href") or ""
                     break
 
             # Clean up and strip whitespace
             title = " ".join(title.split())
             summary = " ".join(summary.split())
-
 
             articles.append(
                 Article(

@@ -12,23 +12,23 @@ load_dotenv()
 
 
 # ============================================================================
-# 工具函数
+# Utility Functions
 # ============================================================================
 
 def get_fetcher_for_source(source: str):
-    """根据来源返回对应的 fetcher"""
+    """Return the appropriate fetcher for the given source."""
     if source == "hn":
         return HackerNewsFetcher()
     return ArxivFetcher()
 
 
 def get_webhook_url(args):
-    """获取 webhook URL，优先使用命令行参数"""
+    """Get webhook URL, preferring command line argument over environment variable."""
     return args.webhook_url or os.environ.get("WEBHOOK_URL")
 
 
 def get_configured_notifiers(webhook_url):
-    """检测已配置的通知渠道"""
+    """Detect configured notification channels."""
     notifiers = []
     
     bot_token = os.environ.get("TELEGRAM_BOT_TOKEN")
@@ -43,7 +43,7 @@ def get_configured_notifiers(webhook_url):
 
 
 def resolve_notifiers(notifier_arg, webhook_url):
-    """解析要使用的通知渠道列表"""
+    """Resolve the list of notification channels to use."""
     if not notifier_arg:
         return []
     if notifier_arg == "all":
@@ -52,14 +52,14 @@ def resolve_notifiers(notifier_arg, webhook_url):
 
 
 def ensure_dir(file_path):
-    """确保文件所在目录存在"""
+    """Ensure the directory for a file path exists."""
     dir_path = os.path.dirname(file_path)
     if dir_path:
         os.makedirs(dir_path, exist_ok=True)
 
 
 def create_notifier(notifier_type, webhook_url):
-    """创建通知器实例"""
+    """Create a notifier instance for the given type."""
     if notifier_type == "telegram":
         bot_token = os.environ.get("TELEGRAM_BOT_TOKEN")
         chat_id = os.environ.get("TELEGRAM_CHAT_ID")
@@ -79,7 +79,7 @@ def create_notifier(notifier_type, webhook_url):
 
 
 def send_notification(articles, notifier_type, webhook_url):
-    """发送单个通知"""
+    """Send a single notification."""
     notifier = create_notifier(notifier_type, webhook_url)
     if not notifier:
         return
@@ -91,7 +91,7 @@ def send_notification(articles, notifier_type, webhook_url):
 
 
 def broadcast_notifications(articles, notifier_types, webhook_url):
-    """向多个渠道发送通知"""
+    """Broadcast notifications to multiple channels."""
     if not notifier_types:
         print("No notification channels configured.")
         return
@@ -101,37 +101,36 @@ def broadcast_notifications(articles, notifier_types, webhook_url):
 
 
 # ============================================================================
-# 命令处理函数
+# Command Handlers
 # ============================================================================
 
 def handle_fetch(args, webhook_url):
-    """处理 --fetch 命令：抓取文章并可选发送通知"""
-    # 获取文章
+    """Handle --fetch command: fetch articles and optionally send notifications."""
     fetcher = get_fetcher_for_source(args.source)
     query = "cat:cs.LG" if args.source == "arxiv" else ""
     articles = fetcher.fetch_articles(query, max_results=5)
 
     if not articles:
-        print("未能获取到任何文章，仍会发送提示。")
+        print("No articles fetched. Sending reminder notification.")
         notifiers = resolve_notifiers(args.notifier, webhook_url)
         broadcast_notifications([], notifiers, webhook_url)
         return
 
-    print(f"成功获取到 {len(articles)} 篇文章，来源：{args.source}。")
+    print(f"Successfully fetched {len(articles)} articles from {args.source}.")
 
-    # 存储文章
+    # Store articles
     storage = JsonStorage()
     ensure_dir(args.json_output)
     
-    # 计算新文章（增量）
+    # Calculate new articles (incremental)
     existing = storage.load_articles(args.json_output)
     existing_links = {a.link for a in existing}
     new_articles = [a for a in articles if a.link not in existing_links]
 
     storage.save_articles(articles, args.json_output)
-    print(f"文章已保存至 {args.json_output}")
+    print(f"Articles saved to {args.json_output}")
 
-    # 发送通知
+    # Send notifications
     notifiers = resolve_notifiers(args.notifier, webhook_url)
     if not notifiers:
         return
@@ -142,12 +141,12 @@ def handle_fetch(args, webhook_url):
 
 
 def handle_visualize(args):
-    """处理 --visualize 命令：生成可视化 HTML"""
+    """Handle --visualize command: generate HTML visualization."""
     storage = JsonStorage()
     articles = storage.load_articles(args.json_output)
     
     if not articles:
-        print("未能加载到任何文章，请先运行 '--fetch' 参数获取文章。")
+        print("No articles found. Please run '--fetch' first to fetch articles.")
         return
 
     ensure_dir(args.output)
@@ -157,16 +156,16 @@ def handle_visualize(args):
 
 
 def handle_notify(args, webhook_url):
-    """处理 --notify 命令：发送已存储文章的通知"""
+    """Handle --notify command: send notifications for stored articles."""
     if not args.notifier:
-        print("请使用 --notifier 参数指定通知渠道 (telegram, webhook 或 all)")
+        print("Please specify a notification channel with --notifier (telegram, webhook, or all)")
         return
 
     storage = JsonStorage()
     articles = storage.load_articles(args.json_output)
     
     if not articles:
-        print(f"未找到文章文件 {args.json_output}，请先运行 '--fetch' 参数获取文章。")
+        print(f"No articles found at {args.json_output}. Please run '--fetch' first.")
         return
 
     notifiers = resolve_notifiers(args.notifier, webhook_url)
@@ -174,11 +173,11 @@ def handle_notify(args, webhook_url):
 
 
 # ============================================================================
-# 主函数
+# Main Function
 # ============================================================================
 
 def parse_args():
-    """解析命令行参数"""
+    """Parse command line arguments."""
     parser = argparse.ArgumentParser(description="Fetch and visualize ML/DL articles.")
     parser.add_argument('--fetch', action='store_true', 
                         help='Fetch articles from the configured source.')
@@ -200,7 +199,7 @@ def parse_args():
 
 
 def main():
-    """主函数入口"""
+    """Main entry point."""
     parser = parse_args()
     args = parser.parse_args()
 
