@@ -47,6 +47,7 @@ def main():
     """主函数，用于执行核心的爬取和存储逻辑。"""
     parser = argparse.ArgumentParser(description="Fetch and visualize ML/DL articles.")
     parser.add_argument('--fetch', action='store_true', help='Fetch articles from the configured source.')
+    parser.add_argument('--notify', action='store_true', help='Send notifications for stored articles.')
     parser.add_argument('--visualize', action='store_true', help='Generate visualization.')
     parser.add_argument('--output', type=str, default='output/articles.html', help='The output file name for visualization')
     parser.add_argument('--json-output', type=str, default='output/articles.json', help='The output file name for stored articles')
@@ -61,7 +62,7 @@ def main():
     webhook_url_env = os.environ.get("WEBHOOK_URL")
     webhook_url = args.webhook_url or webhook_url_env
 
-    if not (args.fetch or args.visualize):
+    if not (args.fetch or args.visualize or args.notify):
         parser.print_help()
         return
 
@@ -125,6 +126,19 @@ def main():
         visualizer.generate_html(articles, html_output_path)
         print(f"Visualization generated at {html_output_path}")
 
+    if args.notify:
+        if not args.notifier:
+            print("请使用 --notifier 参数指定通知渠道 (telegram 或 webhook)")
+            return
+
+        storage = JsonStorage()
+        try:
+            articles = storage.load_articles(json_output_path)
+        except FileNotFoundError:
+            print(f"未找到文章文件 {json_output_path}，请先运行 '--fetch' 参数获取文章。")
+            return
+
+        send_notifications(articles, args.notifier, webhook_url)
 
 
 if __name__ == "__main__":
