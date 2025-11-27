@@ -7,6 +7,16 @@ on:
     - cron: '0 9 * * *'
   # 允许你手动在 GitHub Actions 页面触发此工作流
   workflow_dispatch:
+    inputs:
+      notifier:
+        description: '通知渠道 (telegram 或 webhook)'
+        required: false
+        default: ''
+        type: choice
+        options:
+          - ''
+          - telegram
+          - webhook
 
 jobs:
   build:
@@ -29,12 +39,38 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      # 4. 运行脚本
+      # 4. 确定通知渠道
+      - name: Determine notifier
+        id: notifier
+        run: |
+          # 优先使用手动触发时指定的通知渠道
+          NOTIFIER="${{ github.event.inputs.notifier }}"
+          
+          # 如果没有指定，根据可用的 secrets 自动选择
+          if [ -z "$NOTIFIER" ]; then
+            if [ -n "${{ secrets.WEBHOOK_URL }}" ]; then
+              NOTIFIER="webhook"
+            elif [ -n "${{ secrets.TELEGRAM_BOT_TOKEN }}" ] && [ -n "${{ secrets.TELEGRAM_CHAT_ID }}" ]; then
+              NOTIFIER="telegram"
+            fi
+          fi
+          
+          echo "notifier=$NOTIFIER" >> $GITHUB_OUTPUT
+          
+          # 构建通知参数
+          if [ -n "$NOTIFIER" ]; then
+            echo "args=--notifier $NOTIFIER" >> $GITHUB_OUTPUT
+          else
+            echo "args=" >> $GITHUB_OUTPUT
+          fi
+
+      # 5. 运行脚本
       - name: Run fetch scripts for all sources
         env:
           # 从 GitHub Secrets 中读取配置并设置为环境变量
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          WEBHOOK_URL: ${{ secrets.WEBHOOK_URL }}
         run: |
-          python3 main.py --fetch --source arxiv --json-output output/arxiv_articles.json
-          python3 main.py --fetch --source hn --json-output output/hn_articles.json
+          python3 main.py --fetch --source arxiv --json-output output/arxiv_articles.json ${{ steps.notifier.outputs.args }}
+          python3 main.py --fetch --source hn --json-output output/hn_articles.json ${{ steps.notifier.outputs.args }}
