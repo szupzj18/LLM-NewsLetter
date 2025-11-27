@@ -6,7 +6,7 @@ from ml_subscriber.core.arxiv_fetcher import ArxivFetcher
 from ml_subscriber.core.hn_fetcher import HackerNewsFetcher
 from ml_subscriber.core.storage import JsonStorage
 from ml_subscriber.core.visualization import ArticleVisualizer
-from ml_subscriber.core.notification import TelegramNotifier
+from ml_subscriber.core.notification import TelegramNotifier, WebhookNotifier
 
 load_dotenv()  # 加载 .env 文件中的环境变量
 
@@ -17,19 +17,28 @@ def get_fetcher_for_source(source: str):
     return ArxivFetcher()
 
 
-def send_notifications(articles):
-    bot_token = os.environ.get("TELEGRAM_BOT_TOKEN")
-    chat_id = os.environ.get("TELEGRAM_CHAT_ID")
-
-    if not bot_token or not chat_id:
-        print("Telegram credentials not found in environment variables.")
+def send_notifications(articles, notifier_type, webhook_url=None):
+    notifier = None
+    if notifier_type == "telegram":
+        bot_token = os.environ.get("TELEGRAM_BOT_TOKEN")
+        chat_id = os.environ.get("TELEGRAM_CHAT_ID")
+        if not bot_token or not chat_id:
+            print("Telegram credentials not found in environment variables.")
+            return
+        notifier = TelegramNotifier(bot_token, chat_id)
+    elif notifier_type == "webhook":
+        if not webhook_url:
+            print("Webhook URL not provided.")
+            return
+        notifier = WebhookNotifier(webhook_url)
+    else:
+        print(f"Unknown notifier type: {notifier_type}")
         return
 
-    notifier = TelegramNotifier(bot_token, chat_id)
     if articles:
-        print("Sending notification to Telegram...")
+        print(f"Sending notification via {notifier_type}...")
     else:
-        print("No new articles. Sending reminder to Telegram...")
+        print(f"No new articles. Sending reminder via {notifier_type}...")
     notifier.send(articles)
     print("Notification sent.")
 
@@ -41,11 +50,16 @@ def main():
     parser.add_argument('--visualize', action='store_true', help='Generate visualization.')
     parser.add_argument('--output', type=str, default='output/articles.html', help='The output file name for visualization')
     parser.add_argument('--json-output', type=str, default='output/articles.json', help='The output file name for stored articles')
+    parser.add_argument('--notifier', type=str, choices=['telegram', 'webhook'], help='The notification channel to use.')
+    parser.add_argument('--webhook-url', type=str, help='The webhook URL to send notifications to.')
     parser.add_argument('--source', type=str, choices=['arxiv', 'hn'], default='arxiv', help='Content source to fetch from')
     args = parser.parse_args()
 
     json_output_path = args.json_output
     html_output_path = args.output
+
+    webhook_url_env = os.environ.get("WEBHOOK_URL")
+    webhook_url = args.webhook_url or webhook_url_env
 
     if not (args.fetch or args.visualize):
         parser.print_help()
@@ -60,7 +74,8 @@ def main():
 
         if not articles:
             print("未能获取到任何文章，仍会发送提示。")
-            send_notifications([])
+            if args.notifier:
+                send_notifications([], args.notifier, webhook_url)
             return
 
         print(f"成功获取到 {len(articles)} 篇文章，来源：{args.source}。")
@@ -86,11 +101,12 @@ def main():
         print("如果需要可视化，请运行 '--visualize' 参数生成 HTML 文件。")
 
         # 3. 发送通知
-        if new_articles:
-            send_notifications(new_articles)
-        else:
-            print("No new articles to notify; sending reminder.")
-            send_notifications([])
+        if args.notifier:
+            if new_articles:
+                send_notifications(new_articles, args.notifier, webhook_url)
+            else:
+                print("No new articles to notify; sending reminder.")
+                send_notifications([], args.notifier, webhook_url)
 
     if args.visualize:
         storage = JsonStorage()

@@ -1,7 +1,6 @@
-
 import unittest
 from unittest.mock import patch, MagicMock
-from ml_subscriber.core.notification import TelegramNotifier
+from ml_subscriber.core.notification import TelegramNotifier, WebhookNotifier
 from ml_subscriber.core.models import Article
 
 class TestTelegramNotifier(unittest.TestCase):
@@ -101,6 +100,91 @@ class TestTelegramNotifier(unittest.TestCase):
             json=expected_payload
         )
 
+class TestWebhookNotifier(unittest.TestCase):
+
+    def setUp(self):
+        self.webhook_url = "http://test-webhook.com"
+        self.notifier = WebhookNotifier(self.webhook_url)
+
+    @patch('requests.post')
+    def test_send_success_arxiv(self, mock_post):
+        """Test WebhookNotifier with ArXiv articles."""
+        mock_response = MagicMock()
+        mock_response.raise_for_status.return_value = None
+        mock_post.return_value = mock_response
+
+        articles = [
+            Article(
+                title="Test Title",
+                authors=["Test Author"],
+                summary="Test Summary",
+                link="http://test.com",
+                published_date="2023-10-27T10:00:00Z",
+                pdf_link="http://test.com/test.pdf",
+                metadata={"source": "arxiv"}
+            )
+        ]
+        self.notifier.send(articles)
+
+        text_content = "✨ New ML/DL Papers Found! ✨\n\n"
+        text_content += "📄 Test Title\n🔗 http://test.com\n👤 Test Author\n\n"
+        expected_payload = {
+            "msg_type": "text",
+            "content": {
+                "text": text_content
+            }
+        }
+
+        mock_post.assert_called_once_with(self.webhook_url, json=expected_payload)
+
+    @patch('requests.post')
+    def test_send_success_hn(self, mock_post):
+        """Test WebhookNotifier with Hacker News articles."""
+        mock_response = MagicMock()
+        mock_response.raise_for_status.return_value = None
+        mock_post.return_value = mock_response
+
+        articles = [
+            Article(
+                title="HN Title",
+                authors=["HN Author"],
+                summary="HN Summary",
+                link="http://hn.com/story",
+                published_date="2023-10-27T10:00:00Z",
+                pdf_link="",
+                metadata={"source": "hn"}
+            )
+        ]
+        self.notifier.send(articles)
+
+        text_content = "🚀 Hacker News 热门讨论\n\n"
+        text_content += "📄 HN Title\n🔗 http://hn.com/story\n👤 HN Author\n\n"
+        expected_payload = {
+            "msg_type": "text",
+            "content": {
+                "text": text_content
+            }
+        }
+
+        mock_post.assert_called_once_with(self.webhook_url, json=expected_payload)
+
+    @patch('requests.post')
+    def test_send_no_articles(self, mock_post):
+        """Test WebhookNotifier sends a reminder when no articles are provided."""
+        mock_response = MagicMock()
+        mock_response.raise_for_status.return_value = None
+        mock_post.return_value = mock_response
+
+        self.notifier.send([])
+
+        expected_payload = {
+            "msg_type": "text",
+            "content": {
+                "text": "📭 No new articles this time."
+            }
+        }
+
+        mock_post.assert_called_once_with(self.webhook_url, json=expected_payload)
+
 if __name__ == '__main__':
     unittest.main()
-
