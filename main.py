@@ -43,6 +43,23 @@ def send_notifications(articles, notifier_type, webhook_url=None):
     print("Notification sent.")
 
 
+def get_configured_notifiers(webhook_url):
+    """检测已配置的通知渠道"""
+    notifiers = []
+    
+    # 检查 Telegram 配置
+    bot_token = os.environ.get("TELEGRAM_BOT_TOKEN")
+    chat_id = os.environ.get("TELEGRAM_CHAT_ID")
+    if bot_token and chat_id:
+        notifiers.append("telegram")
+    
+    # 检查 Webhook 配置
+    if webhook_url:
+        notifiers.append("webhook")
+    
+    return notifiers
+
+
 def main():
     """主函数，用于执行核心的爬取和存储逻辑。"""
     parser = argparse.ArgumentParser(description="Fetch and visualize ML/DL articles.")
@@ -51,7 +68,7 @@ def main():
     parser.add_argument('--visualize', action='store_true', help='Generate visualization.')
     parser.add_argument('--output', type=str, default='output/articles.html', help='The output file name for visualization')
     parser.add_argument('--json-output', type=str, default='output/articles.json', help='The output file name for stored articles')
-    parser.add_argument('--notifier', type=str, choices=['telegram', 'webhook'], help='The notification channel to use.')
+    parser.add_argument('--notifier', type=str, choices=['telegram', 'webhook', 'all'], help='The notification channel to use. Use "all" to notify all configured channels.')
     parser.add_argument('--webhook-url', type=str, help='The webhook URL to send notifications to.')
     parser.add_argument('--source', type=str, choices=['arxiv', 'hn'], default='arxiv', help='Content source to fetch from')
     args = parser.parse_args()
@@ -103,11 +120,21 @@ def main():
 
         # 3. 发送通知
         if args.notifier:
-            if new_articles:
-                send_notifications(new_articles, args.notifier, webhook_url)
+            # 确定要使用的通知渠道
+            if args.notifier == "all":
+                notifiers_to_use = get_configured_notifiers(webhook_url)
+                if not notifiers_to_use:
+                    print("No notification channels configured.")
             else:
+                notifiers_to_use = [args.notifier]
+            
+            # 发送到所有指定的渠道
+            articles_to_send = new_articles if new_articles else []
+            if not new_articles:
                 print("No new articles to notify; sending reminder.")
-                send_notifications([], args.notifier, webhook_url)
+            
+            for notifier_type in notifiers_to_use:
+                send_notifications(articles_to_send, notifier_type, webhook_url)
 
     if args.visualize:
         storage = JsonStorage()

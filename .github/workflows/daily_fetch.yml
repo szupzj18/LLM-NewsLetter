@@ -29,35 +29,12 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      # 4. 抓取文章
-      - name: Fetch articles from all sources
-        run: |
-          python3 main.py --fetch --source arxiv --json-output output/arxiv_articles.json
-          python3 main.py --fetch --source hn --json-output output/hn_articles.json
-
-      # 5. 发送 Telegram 通知
-      - name: Send Telegram notification
+      # 4. 抓取文章并发送通知 (自动检测已配置的通知渠道)
+      - name: Fetch articles and notify
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-        run: |
-          if [ -n "$TELEGRAM_BOT_TOKEN" ] && [ -n "$TELEGRAM_CHAT_ID" ]; then
-            echo "Sending Telegram notifications..."
-            python3 main.py --notify --source arxiv --json-output output/arxiv_articles.json --notifier telegram
-            python3 main.py --notify --source hn --json-output output/hn_articles.json --notifier telegram
-          else
-            echo "Telegram credentials not configured, skipping..."
-          fi
-
-      # 6. 发送 Webhook 通知
-      - name: Send Webhook notification
-        env:
           WEBHOOK_URL: ${{ secrets.WEBHOOK_URL }}
         run: |
-          if [ -n "$WEBHOOK_URL" ]; then
-            echo "Sending Webhook notifications..."
-            python3 main.py --notify --source arxiv --json-output output/arxiv_articles.json --notifier webhook
-            python3 main.py --notify --source hn --json-output output/hn_articles.json --notifier webhook
-          else
-            echo "Webhook URL not configured, skipping..."
-          fi
+          python3 main.py --fetch --source arxiv --json-output output/arxiv_articles.json --notifier all
+          python3 main.py --fetch --source hn --json-output output/hn_articles.json --notifier all
