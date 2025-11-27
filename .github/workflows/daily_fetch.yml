@@ -29,12 +29,12 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      # 4. 运行脚本
-      - name: Run fetch scripts for all sources
+      # 4. 抓取文章并发送通知 (自动检测已配置的通知渠道)
+      - name: Fetch articles and notify
         env:
-          # 从 GitHub Secrets 中读取配置并设置为环境变量
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          WEBHOOK_URL: ${{ secrets.WEBHOOK_URL }}
         run: |
-          python3 main.py --fetch --source arxiv --json-output output/arxiv_articles.json
-          python3 main.py --fetch --source hn --json-output output/hn_articles.json
+          python3 main.py --fetch --source arxiv --json-output output/arxiv_articles.json --notifier all
+          python3 main.py --fetch --source hn --json-output output/hn_articles.json --notifier all
