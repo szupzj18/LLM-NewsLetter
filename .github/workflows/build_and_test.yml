@@ -1,0 +1,61 @@
+name: Build and Test
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  # 允许手动触发
+  workflow_dispatch:
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    
+    strategy:
+      matrix:
+        python-version: ['3.9', '3.10', '3.11']
+
+    steps:
+      # 1. 检出代码
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # 2. 设置 Python 环境
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      # 3. 缓存 pip 依赖
+      - name: Cache pip dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
+      # 4. 安装依赖
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      # 5. 检查代码语法 (编译检查)
+      - name: Check Python syntax
+        run: |
+          python -m py_compile main.py
+          python -m py_compile ml_subscriber/__init__.py
+          python -m py_compile ml_subscriber/core/__init__.py
+          python -m py_compile ml_subscriber/core/arxiv_fetcher.py
+          python -m py_compile ml_subscriber/core/hn_fetcher.py
+          python -m py_compile ml_subscriber/core/models.py
+          python -m py_compile ml_subscriber/core/notification.py
+          python -m py_compile ml_subscriber/core/storage.py
+          python -m py_compile ml_subscriber/core/visualization.py
+
+      # 6. 运行单元测试
+      - name: Run unit tests
+        run: |
+          python -m unittest discover tests -v
