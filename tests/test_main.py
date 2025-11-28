@@ -223,8 +223,22 @@ class TestBroadcastNotifications(unittest.TestCase):
         broadcast_notifications(articles, notifier_types, webhook_url, translator=None)
         
         self.assertEqual(mock_send.call_count, 2)
-        mock_send.assert_any_call(articles, "telegram", webhook_url, translator=None)
-        mock_send.assert_any_call(articles, "webhook", webhook_url, translator=None)
+        mock_send.assert_any_call(
+            articles,
+            "telegram",
+            webhook_url,
+            translator=None,
+            style="detailed",
+            message_format="text",
+        )
+        mock_send.assert_any_call(
+            articles,
+            "webhook",
+            webhook_url,
+            translator=None,
+            style="detailed",
+            message_format="text",
+        )
 
     @patch('main.send_notification')
     def test_does_not_send_when_notifier_types_empty(self, mock_send):
@@ -318,7 +332,14 @@ class TestHandleFetch(unittest.TestCase):
         handle_fetch(self.args, "http://webhook.com", translator=None, skip_notify=False)
 
         # Should still send reminder notification
-        mock_broadcast.assert_called_once_with([], ["webhook"], "http://webhook.com", translator=None)
+        mock_broadcast.assert_called_once_with(
+            [],
+            ["webhook"],
+            "http://webhook.com",
+            translator=None,
+            style="detailed",
+            message_format="text",
+        )
 
     @patch('main.broadcast_notifications')
     @patch('main.get_fetcher_for_source')
@@ -379,7 +400,14 @@ class TestHandleNotify(unittest.TestCase):
 
         handle_notify(self.args, "http://webhook.com", translator=None)
 
-        mock_broadcast.assert_called_once_with(articles, ["webhook"], "http://webhook.com", translator=None)
+        mock_broadcast.assert_called_once_with(
+            articles,
+            ["webhook"],
+            "http://webhook.com",
+            translator=None,
+            style="detailed",
+            message_format="text",
+        )
 
     @patch('main.broadcast_notifications')
     @patch('main.JsonStorage')
