@@ -57,6 +57,12 @@ class TelegramNotifier(Notifier):
         """Escapes text for Telegram's HTML parser."""
         return html.escape(text)
 
+    def _truncate_summary(self, summary: str, max_length: int = 300) -> str:
+        """Truncates a summary to a maximum length."""
+        if not summary or len(summary) <= max_length:
+            return summary
+        return summary[:max_length].rsplit(' ', 1)[0] + "..."
+
     def _format_message(self, articles: List[Article]) -> str:
         """
         Formats a list of articles into a single HTML message string.
@@ -69,7 +75,11 @@ class TelegramNotifier(Notifier):
             authors_text = ', '.join(article.authors) if article.authors else "Unknown"
             authors = self._escape_html(authors_text)
             message += f'📄 <b><a href="{article.link}">{title}</a></b>\n'
-            message += f"👤 <i>{authors}</i>\n\n"
+            message += f"👤 <i>{authors}</i>\n"
+            if article.summary:
+                summary = self._escape_html(self._truncate_summary(article.summary))
+                message += f"📝 {summary}\n"
+            message += "\n"
         return message
 
     def _infer_source(self, articles: List[Article]) -> str:
@@ -132,6 +142,12 @@ class WebhookNotifier(Notifier):
         message = self._format_message(articles)
         self._send_message(message)
 
+    def _truncate_summary(self, summary: str, max_length: int = 300) -> str:
+        """Truncates a summary to a maximum length."""
+        if not summary or len(summary) <= max_length:
+            return summary
+        return summary[:max_length].rsplit(' ', 1)[0] + "..."
+
     def _format_message(self, articles: List[Article]) -> dict:
         """
         Formats a list of articles into a single message string for Feishu.
@@ -142,7 +158,11 @@ class WebhookNotifier(Notifier):
         for article in articles:
             title = article.title
             authors_text = ', '.join(article.authors) if article.authors else "Unknown"
-            text_content += f"📄 {title}\n🔗 {article.link}\n👤 {authors_text}\n\n"
+            text_content += f"📄 {title}\n🔗 {article.link}\n👤 {authors_text}\n"
+            if article.summary:
+                summary = self._truncate_summary(article.summary)
+                text_content += f"📝 {summary}\n"
+            text_content += "\n"
 
         return {
             "msg_type": "text",

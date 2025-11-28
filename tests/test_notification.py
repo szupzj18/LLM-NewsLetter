@@ -32,7 +32,8 @@ class TestTelegramNotifier(unittest.TestCase):
 
         expected_message = "✨ <b>New ML/DL Papers Found!</b> ✨\n\n"
         expected_message += "📄 <b><a href=\"http://test.com\">Test Title</a></b>\n"
-        expected_message += "👤 <i>Test Author</i>\n\n"
+        expected_message += "👤 <i>Test Author</i>\n"
+        expected_message += "📝 Test Summary\n\n"
 
         expected_payload = {
             'chat_id': self.chat_id,
@@ -67,7 +68,8 @@ class TestTelegramNotifier(unittest.TestCase):
 
         expected_message = "🚀 <b>Hacker News 热门讨论</b>\n\n"
         expected_message += "📄 <b><a href=\"http://hn.com/story\">HN Title</a></b>\n"
-        expected_message += "👤 <i>HN Author</i>\n\n"
+        expected_message += "👤 <i>HN Author</i>\n"
+        expected_message += "📝 HN Summary\n\n"
 
         expected_payload = {
             'chat_id': self.chat_id,
@@ -127,7 +129,8 @@ class TestWebhookNotifier(unittest.TestCase):
         self.notifier.send(articles)
 
         text_content = "✨ New ML/DL Papers Found! ✨\n\n"
-        text_content += "📄 Test Title\n🔗 http://test.com\n👤 Test Author\n\n"
+        text_content += "📄 Test Title\n🔗 http://test.com\n👤 Test Author\n"
+        text_content += "📝 Test Summary\n\n"
         expected_payload = {
             "msg_type": "text",
             "content": {
@@ -158,7 +161,8 @@ class TestWebhookNotifier(unittest.TestCase):
         self.notifier.send(articles)
 
         text_content = "🚀 Hacker News 热门讨论\n\n"
-        text_content += "📄 HN Title\n🔗 http://hn.com/story\n👤 HN Author\n\n"
+        text_content += "📄 HN Title\n🔗 http://hn.com/story\n👤 HN Author\n"
+        text_content += "📝 HN Summary\n\n"
         expected_payload = {
             "msg_type": "text",
             "content": {
