@@ -1,8 +1,11 @@
 import abc
-import requests
 import html
+from typing import List
+
+import requests
 
 from .models import Article
+
 
 class Notifier(abc.ABC):
     """
@@ -10,13 +13,14 @@ class Notifier(abc.ABC):
     """
 
     @abc.abstractmethod
-    def send(self, articles: list[Article]):
+    def send(self, articles: List[Article]) -> None:
         """
         Sends a list of articles as a notification.
         Args:
             articles: A list of Article objects.
         """
         raise NotImplementedError
+
 
 class TelegramNotifier(Notifier):
     """
@@ -35,7 +39,7 @@ class TelegramNotifier(Notifier):
         self.chat_id = chat_id
         self.api_url = f"https://api.telegram.org/bot{self.bot_token}/sendMessage"
 
-    def send(self, articles: list[Article]):
+    def send(self, articles: List[Article]) -> None:
         """
         Sends a list of articles as a notification.
 
@@ -53,7 +57,7 @@ class TelegramNotifier(Notifier):
         """Escapes text for Telegram's HTML parser."""
         return html.escape(text)
 
-    def _format_message(self, articles: list[Article]) -> str:
+    def _format_message(self, articles: List[Article]) -> str:
         """
         Formats a list of articles into a single HTML message string.
         """
@@ -68,7 +72,7 @@ class TelegramNotifier(Notifier):
             message += f"👤 <i>{authors}</i>\n\n"
         return message
 
-    def _infer_source(self, articles: list[Article]) -> str:
+    def _infer_source(self, articles: List[Article]) -> str:
         if not articles:
             return "unknown"
         return articles[0].metadata.get("source", "unknown")
@@ -114,7 +118,7 @@ class WebhookNotifier(Notifier):
         """
         self.webhook_url = webhook_url
 
-    def send(self, articles: list[Article]):
+    def send(self, articles: List[Article]) -> None:
         """
         Sends a list of articles as a notification.
 
@@ -128,7 +132,7 @@ class WebhookNotifier(Notifier):
         message = self._format_message(articles)
         self._send_message(message)
 
-    def _format_message(self, articles: list[Article]) -> dict:
+    def _format_message(self, articles: List[Article]) -> dict:
         """
         Formats a list of articles into a single message string for Feishu.
         """
@@ -147,7 +151,7 @@ class WebhookNotifier(Notifier):
             }
         }
 
-    def _infer_source(self, articles: list[Article]) -> str:
+    def _infer_source(self, articles: List[Article]) -> str:
         if not articles:
             return "unknown"
         return articles[0].metadata.get("source", "unknown")

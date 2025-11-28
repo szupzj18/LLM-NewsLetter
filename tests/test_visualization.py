@@ -39,7 +39,7 @@ class TestArticleVisualizer(unittest.TestCase):
             self.assertIn("<h2>Test Title 1</h2>", content)
             self.assertIn("<p><strong>Authors:</strong> Author 1</p>", content)
             self.assertIn("<p>Summary 1</p>", content)
-            self.assertIn("<p><a href='http://example.com/1.pdf'>Read More</a></p>", content)
+            self.assertIn('<p><a href="http://example.com/1.pdf">Read More</a></p>', content)
 
     def test_generate_html_no_articles(self):
         """Test generating an HTML file with no articles."""
@@ -51,6 +51,32 @@ class TestArticleVisualizer(unittest.TestCase):
             content = f.read()
             self.assertIn("<h1>ML/DL Articles</h1>", content)
             self.assertNotIn("<h2>", content)
+
+    def test_generate_html_xss_protection(self):
+        """Test that HTML special characters are escaped to prevent XSS."""
+        articles = [
+            Article(
+                title="<script>alert('XSS')</script>",
+                authors=["<b>Malicious</b> Author"],
+                summary="<img src=x onerror=alert('XSS')>",
+                link="http://example.com/1",
+                published_date="2023-10-27T10:00:00Z",
+                pdf_link="http://example.com/1.pdf"
+            )
+        ]
+
+        self.visualizer.generate_html(articles, self.temp_filename)
+
+        with open(self.temp_filename, 'r', encoding='utf-8') as f:
+            content = f.read()
+            # Verify that dangerous HTML tags are escaped (no raw executable tags)
+            self.assertNotIn("<script>", content)
+            self.assertNotIn("<img ", content)
+            # Verify escaped versions are present
+            self.assertIn("&lt;script&gt;", content)
+            self.assertIn("&lt;b&gt;Malicious&lt;/b&gt;", content)
+            self.assertIn("&lt;img ", content)
+
 
 if __name__ == "__main__":
     unittest.main()

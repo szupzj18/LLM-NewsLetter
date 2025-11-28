@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from typing import Dict, List, Protocol
+from typing import Any, Dict, List, Protocol
 
 
 @dataclass
@@ -12,7 +12,7 @@ class Article:
     link: str
     published_date: str
     pdf_link: str
-    metadata: Dict[str, object] = field(default_factory=dict)
+    metadata: Dict[str, Any] = field(default_factory=dict)
 
 
 class ContentSource(Protocol):
