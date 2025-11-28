@@ -104,16 +104,25 @@ def broadcast_notifications(articles, notifier_types, webhook_url):
 # Command Handlers
 # ============================================================================
 
-def handle_fetch(args, webhook_url):
-    """Handle --fetch command: fetch articles and optionally send notifications."""
+def handle_fetch(args, webhook_url, skip_notify=False):
+    """Handle --fetch command: fetch articles and optionally send notifications.
+    
+    Args:
+        args: Command line arguments.
+        webhook_url: The webhook URL for notifications.
+        skip_notify: If True, skip sending notifications (used when --notify is also specified).
+    """
     fetcher = get_fetcher_for_source(args.source)
     query = "cat:cs.LG" if args.source == "arxiv" else ""
     articles = fetcher.fetch_articles(query, max_results=5)
 
     if not articles:
-        print("No articles fetched. Sending reminder notification.")
-        notifiers = resolve_notifiers(args.notifier, webhook_url)
-        broadcast_notifications([], notifiers, webhook_url)
+        print("No articles fetched.")
+        if not skip_notify:
+            notifiers = resolve_notifiers(args.notifier, webhook_url)
+            if notifiers:
+                print("Sending reminder notification.")
+                broadcast_notifications([], notifiers, webhook_url)
         return
 
     print(f"Successfully fetched {len(articles)} articles from {args.source}.")
@@ -130,7 +139,10 @@ def handle_fetch(args, webhook_url):
     storage.save_articles(articles, args.json_output)
     print(f"Articles saved to {args.json_output}")
 
-    # Send notifications
+    # Send notifications only if --notify is not also specified
+    if skip_notify:
+        return
+    
     notifiers = resolve_notifiers(args.notifier, webhook_url)
     if not notifiers:
         return
@@ -210,7 +222,8 @@ def main():
     webhook_url = get_webhook_url(args)
 
     if args.fetch:
-        handle_fetch(args, webhook_url)
+        # Skip notifications in fetch if --notify is also specified (to avoid duplicate)
+        handle_fetch(args, webhook_url, skip_notify=args.notify)
 
     if args.visualize:
         handle_visualize(args)
