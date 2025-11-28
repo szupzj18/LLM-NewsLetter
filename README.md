@@ -8,6 +8,10 @@
 - 从 ArXiv API 爬取指定查询条件的最新论文。
 - 从 Hacker News 获取热门资讯，并映射为统一的文章数据结构。
 - 解析数据，提取标题、作者、摘要、发布日期、链接等核心信息。
+- **自动翻译**：
+  - ✅ 支持将标题和摘要翻译成中文
+  - ✅ 默认使用免费 Google 翻译
+  - ✅ 可选使用 DeepL API（翻译质量更高）
 - **多渠道通知支持**：
   - ✅ Telegram Bot 通知
   - ✅ Webhook 通知（支持飞书、钉钉等）
@@ -34,7 +38,40 @@
     python3 -m pip install -r requirements.txt
     ```
 
-3.  **配置通知渠道 (可选)**
+3.  **配置翻译功能 (可选)**
+
+    系统默认启用免费的 Google 翻译，无需任何配置即可使用。
+
+    ### 使用免费翻译（默认）
+    
+    无需配置，系统会自动使用 Google 免费翻译服务。
+    
+    ```bash
+    python3 main.py --fetch --notifier webhook --webhook-url "YOUR_WEBHOOK_URL"
+    # 输出: Free Google translation enabled.
+    ```
+
+    ### 使用 DeepL 翻译（更高质量）
+
+    如需使用 DeepL 获得更高质量的翻译：
+
+    1. 访问 [DeepL API](https://www.deepl.com/pro-api) 注册账号（免费版每月可翻译 50 万字符）
+    2. 在账户设置中获取 API Key
+    3. 设置环境变量：
+    
+    ```bash
+    export DEEPL_API_KEY="your-deepl-api-key"
+    ```
+
+    ### 禁用翻译
+
+    如不需要翻译功能：
+
+    ```bash
+    export USE_FREE_TRANSLATOR=false
+    ```
+
+4.  **配置通知渠道 (可选)**
 
     ### Telegram 通知
 
@@ -54,7 +91,7 @@
       export WEBHOOK_URL="YOUR_WEBHOOK_URL"
       ```
 
-4.  **获取文章与发送通知**
+5.  **获取文章与发送通知**
 
     运行以下命令来获取最新的文章并发送通知：
 
@@ -72,7 +109,7 @@
     - `webhook` - 仅发送到 Webhook
     - `all` - 自动检测并发送到所有已配置的渠道
 
-5.  **可视化文章**
+6.  **可视化文章**
 
     使用 `--visualize` 参数来生成 HTML 可视化文件（默认将结果写入 `output/articles.html`）：
 
@@ -81,6 +118,34 @@
     ```
 
     这会读取 `output/articles.json` 文件并生成一个名为 `output/articles.html` 的 HTML 文件。若需更改 JSON 存储位置，可配合 `--json-output` 参数指定。
+
+## 推送效果示例
+
+启用翻译后，推送消息会同时包含原文和中文翻译：
+
+```
+✨ New ML/DL Papers Found! ✨
+
+📄 Attention Is All You Need
+📄 注意力机制是你所需要的一切
+📝 The dominant sequence transduction models are based on complex recurrent...
+📝 主流的序列转换模型基于复杂的循环或卷积神经网络...
+
+📄 BERT: Pre-training of Deep Bidirectional Transformers
+📄 BERT：深度双向Transformer的预训练
+📝 We introduce a new language representation model called BERT...
+📝 我们引入了一种新的语言表示模型BERT...
+```
+
+## 环境变量
+
+| 变量 | 说明 | 必需 | 默认值 |
+|------|------|------|--------|
+| `TELEGRAM_BOT_TOKEN` | Telegram Bot Token | 可选 | - |
+| `TELEGRAM_CHAT_ID` | Telegram 聊天 ID | 可选 | - |
+| `WEBHOOK_URL` | Webhook URL | 可选 | - |
+| `DEEPL_API_KEY` | DeepL API Key（高质量翻译） | 可选 | - |
+| `USE_FREE_TRANSLATOR` | 是否使用免费翻译 | 可选 | `true` |
 
 ## GitHub Actions 自动化
 
@@ -95,6 +160,7 @@
 | `TELEGRAM_BOT_TOKEN` | Telegram Bot Token | 可选 |
 | `TELEGRAM_CHAT_ID` | Telegram 聊天 ID | 可选 |
 | `WEBHOOK_URL` | Webhook URL | 可选 |
+| `DEEPL_API_KEY` | DeepL API Key | 可选 |
 
 配置了哪些渠道，就会向哪些渠道发送通知，互不影响。
 
@@ -127,6 +193,7 @@ python3 -m unittest discover tests
 │       ├── models.py         # Article 数据模型与协议
 │       ├── storage.py        # 数据存储模块 (JSON)
 │       ├── notification.py   # 通知模块 (Telegram & Webhook)
+│       ├── translator.py     # 翻译模块 (DeepL & Google Free)
 │       └── visualization.py  # 文章可视化模块
 ├── tests/
 │   ├── __init__.py
@@ -134,6 +201,7 @@ python3 -m unittest discover tests
 │   ├── test_hn_fetcher.py    # HackerNewsFetcher 的单元测试
 │   ├── test_main.py          # 主程序工具函数的单元测试
 │   ├── test_notification.py  # 通知模块的单元测试
+│   ├── test_translator.py    # 翻译模块的单元测试
 │   ├── test_storage.py       # JsonStorage 的单元测试
 │   └── test_visualization.py # ArticleVisualizer 的单元测试
 ├── main.py                   # 主程序入口
@@ -151,8 +219,8 @@ python3 -m unittest discover tests
     - ✅ **通过即时通讯工具接收通知** (已通过 Telegram 实现)
     - ✅ **Webhook 通知支持** (已实现，支持飞书、钉钉等)
     - ✅ **多渠道同时通知** (已实现)
+    - ✅ **自动翻译** (已实现，支持 DeepL 和免费 Google 翻译)
     - 允许用户通过关键词订阅。
     - 支持更多通知渠道 (如 Slack, Email)。
 - **构建用户界面**：开发一个 Web 前端，让用户可以管理自己的订阅。
 - **引入 NLP 功能**：实现自动摘要、主题分类、情感分析等高级功能。
-
