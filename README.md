@@ -128,13 +128,11 @@
 
 📄 Attention Is All You Need
 📄 注意力机制是你所需要的一切
-👤 Ashish Vaswani, Noam Shazeer
 📝 The dominant sequence transduction models are based on complex recurrent...
 📝 主流的序列转换模型基于复杂的循环或卷积神经网络...
 
 📄 BERT: Pre-training of Deep Bidirectional Transformers
 📄 BERT：深度双向Transformer的预训练
-👤 Jacob Devlin, Ming-Wei Chang
 📝 We introduce a new language representation model called BERT...
 📝 我们引入了一种新的语言表示模型BERT...
 ```

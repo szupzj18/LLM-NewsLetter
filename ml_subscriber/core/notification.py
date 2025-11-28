@@ -76,12 +76,9 @@ class TelegramNotifier(Notifier):
         for article in articles:
             title = self._escape_html(article.title)
             title_zh = self._escape_html(self.translator.translate(article.title))
-            authors_text = ', '.join(article.authors) if article.authors else "Unknown"
-            authors = self._escape_html(authors_text)
             message += f'📄 <b><a href="{article.link}">{title}</a></b>\n'
             if title_zh != title:
                 message += f"📄 <b>{title_zh}</b>\n"
-            message += f"👤 <i>{authors}</i>\n"
             if article.summary:
                 summary = self._truncate_summary(article.summary)
                 summary_escaped = self._escape_html(summary)
@@ -170,11 +167,10 @@ class WebhookNotifier(Notifier):
         for article in articles:
             title = article.title
             title_zh = self.translator.translate(article.title)
-            authors_text = ', '.join(article.authors) if article.authors else "Unknown"
             text_content += f"📄 {title}\n"
             if title_zh != title:
                 text_content += f"📄 {title_zh}\n"
-            text_content += f"🔗 {article.link}\n👤 {authors_text}\n"
+            text_content += f"🔗 {article.link}\n"
             if article.summary:
                 summary = self._truncate_summary(article.summary)
                 summary_zh = self.translator.translate(summary)
