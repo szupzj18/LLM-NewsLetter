@@ -101,6 +101,61 @@ class TestTelegramNotifier(unittest.TestCase):
             json=expected_payload
         )
 
+    @patch('requests.post')
+    def test_compact_style_omits_summary(self, mock_post):
+        """Compact style should not include summary lines."""
+        mock_response = MagicMock()
+        mock_response.raise_for_status.return_value = None
+        mock_post.return_value = mock_response
+
+        notifier = TelegramNotifier(self.bot_token, self.chat_id, style="compact")
+
+        articles = [
+            Article(
+                title="Compact Title",
+                authors=["Author"],
+                summary="Compact Summary",
+                link="http://example.com",
+                published_date="2023-10-27T10:00:00Z",
+                pdf_link="",
+                metadata={"source": "arxiv"}
+            )
+        ]
+        notifier.send(articles)
+
+        payload = mock_post.call_args[1]['json']
+        message = payload['text']
+        self.assertEqual(payload['parse_mode'], 'HTML')
+        self.assertNotIn("📝", message)
+
+    @patch('requests.post')
+    def test_markdown_format(self, mock_post):
+        """Markdown format should switch parse_mode and use markdown body."""
+        mock_response = MagicMock()
+        mock_response.raise_for_status.return_value = None
+        mock_post.return_value = mock_response
+
+        notifier = TelegramNotifier(self.bot_token, self.chat_id, message_format="markdown")
+
+        articles = [
+            Article(
+                title="Markdown Title",
+                authors=["Author"],
+                summary="Markdown Summary",
+                link="http://example.com",
+                published_date="2023-10-27T10:00:00Z",
+                pdf_link="",
+                metadata={"source": "arxiv"}
+            )
+        ]
+        notifier.send(articles)
+
+        payload = mock_post.call_args[1]['json']
+        message = payload['text']
+        self.assertEqual(payload['parse_mode'], 'MarkdownV2')
+        self.assertIn("[Markdown Title](http://example.com)", message)
+        self.assertIn("📝", message)
+
 class TestWebhookNotifier(unittest.TestCase):
 
     def setUp(self):
@@ -188,6 +243,58 @@ class TestWebhookNotifier(unittest.TestCase):
         }
 
         mock_post.assert_called_once_with(self.webhook_url, json=expected_payload)
+
+    @patch('requests.post')
+    def test_compact_style_webhook(self, mock_post):
+        """Compact style for webhook omits summary lines."""
+        mock_response = MagicMock()
+        mock_response.raise_for_status.return_value = None
+        mock_post.return_value = mock_response
+
+        notifier = WebhookNotifier(self.webhook_url, style="compact")
+
+        articles = [
+            Article(
+                title="Compact Title",
+                authors=["Author"],
+                summary="Should be hidden",
+                link="http://example.com",
+                published_date="2023-10-27T10:00:00Z",
+                pdf_link="",
+                metadata={"source": "arxiv"}
+            )
+        ]
+        notifier.send(articles)
+
+        payload = mock_post.call_args[1]['json']
+        self.assertEqual(payload['msg_type'], 'text')
+        self.assertNotIn("📝", payload['content']['text'])
+
+    @patch('requests.post')
+    def test_markdown_format_webhook(self, mock_post):
+        """Markdown format payload uses markdown msg_type."""
+        mock_response = MagicMock()
+        mock_response.raise_for_status.return_value = None
+        mock_post.return_value = mock_response
+
+        notifier = WebhookNotifier(self.webhook_url, message_format="markdown")
+
+        articles = [
+            Article(
+                title="Markdown Title",
+                authors=["Author"],
+                summary="Summary content",
+                link="http://example.com",
+                published_date="2023-10-27T10:00:00Z",
+                pdf_link="",
+                metadata={"source": "arxiv"}
+            )
+        ]
+        notifier.send(articles)
+
+        payload = mock_post.call_args[1]['json']
+        self.assertEqual(payload['msg_type'], 'markdown')
+        self.assertIn("**", payload['content']['text'])
 
 class MockTranslator(Translator):
     """Mock translator for testing."""

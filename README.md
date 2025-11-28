@@ -109,6 +109,15 @@
     - `webhook` - 仅发送到 Webhook
     - `all` - 自动检测并发送到所有已配置的渠道
 
+    ### 自定义通知样式与 Markdown
+
+    - `--notify-style` 控制通知的冗长度：
+      - `detailed`（默认）：包含摘要及双语内容。
+      - `compact`：只保留标题与链接，适合快捷浏览。
+    - `--notify-format` 控制消息格式：
+      - `text`（默认）：沿用 HTML（Telegram）或纯文本（Webhook）。
+      - `markdown`：输出 Markdown 消息，Telegram 会自动切换为 `MarkdownV2`，Webhook 会发送 `msg_type=markdown`，方便接入支持 Markdown 的机器人。
+
 6.  **可视化文章**
 
     使用 `--visualize` 参数来生成 HTML 可视化文件（默认将结果写入 `output/articles.html`）：
