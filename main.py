@@ -62,10 +62,15 @@ def ensure_dir(file_path):
 def get_translator():
     """Create a translator instance based on environment configuration."""
     deepl_api_key = os.environ.get("DEEPL_API_KEY")
+    use_free = os.environ.get("USE_FREE_TRANSLATOR", "true").lower() == "true"
+    
     if deepl_api_key:
         print("DeepL translation enabled.")
-        return create_translator(deepl_api_key)
-    return create_translator()
+        return create_translator(deepl_api_key=deepl_api_key)
+    elif use_free:
+        print("Free Google translation enabled.")
+        return create_translator(use_free=True)
+    return create_translator(use_free=False)
 
 
 def create_notifier(notifier_type, webhook_url, translator=None):
