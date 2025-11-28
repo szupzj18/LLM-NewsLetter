@@ -16,6 +16,9 @@
   - ✅ Telegram Bot 通知
   - ✅ Webhook 通知（支持飞书、钉钉等）
   - ✅ 同时向多个渠道发送通知
+- **通知样式自定义**：
+  - ✅ `detailed`/`compact` 两种内容密度
+  - ✅ `text`/`markdown` 两种消息格式（Telegram MarkdownV2 & Webhook Markdown）
 - **增量通知**：自动比较新旧文章，只通知新增内容，避免重复推送。
 - 将获取的文章列表存储在本地 JSON 文件中。
 - 将文章可视化为 HTML 文件，便于浏览。
@@ -117,6 +120,19 @@
     - `--notify-format` 控制消息格式：
       - `text`（默认）：沿用 HTML（Telegram）或纯文本（Webhook）。
       - `markdown`：输出 Markdown 消息，Telegram 会自动切换为 `MarkdownV2`，Webhook 会发送 `msg_type=markdown`，方便接入支持 Markdown 的机器人。
+
+    示例：
+
+    ```bash
+    # 只推送标题/链接，适合快速通读
+    python3 main.py --fetch --source arxiv --notifier telegram --notify-style compact
+
+    # 以 Markdown 发送，方便嵌入支持 Markdown 的群机器人
+    python3 main.py --fetch --source hn --notifier webhook --notify-format markdown
+
+    # 组合使用：Markdown + 紧凑模式
+    python3 main.py --fetch --source arxiv --notifier all --notify-style compact --notify-format markdown
+    ```
 
 6.  **可视化文章**
 
