@@ -1,10 +1,11 @@
 import abc
 import html
-from typing import List
+from typing import List, Optional
 
 import requests
 
 from .models import Article
+from .translator import Translator, NoOpTranslator
 
 
 class Notifier(abc.ABC):
@@ -27,17 +28,19 @@ class TelegramNotifier(Notifier):
     A class to send notifications to a Telegram chat.
     """
 
-    def __init__(self, bot_token: str, chat_id: str):
+    def __init__(self, bot_token: str, chat_id: str, translator: Optional[Translator] = None):
         """
         Initializes the TelegramNotifier.
 
         Args:
             bot_token: The token for the Telegram bot.
             chat_id: The ID of the chat to send messages to.
+            translator: Optional translator for translating content.
         """
         self.bot_token = bot_token
         self.chat_id = chat_id
         self.api_url = f"https://api.telegram.org/bot{self.bot_token}/sendMessage"
+        self.translator = translator or NoOpTranslator()
 
     def send(self, articles: List[Article]) -> None:
         """
@@ -72,13 +75,20 @@ class TelegramNotifier(Notifier):
         message = f"{heading}\n\n"
         for article in articles:
             title = self._escape_html(article.title)
+            title_zh = self._escape_html(self.translator.translate(article.title))
             authors_text = ', '.join(article.authors) if article.authors else "Unknown"
             authors = self._escape_html(authors_text)
             message += f'📄 <b><a href="{article.link}">{title}</a></b>\n'
+            if title_zh != title:
+                message += f"📄 <b>{title_zh}</b>\n"
             message += f"👤 <i>{authors}</i>\n"
             if article.summary:
-                summary = self._escape_html(self._truncate_summary(article.summary))
-                message += f"📝 {summary}\n"
+                summary = self._truncate_summary(article.summary)
+                summary_escaped = self._escape_html(summary)
+                summary_zh = self._escape_html(self.translator.translate(summary))
+                message += f"📝 {summary_escaped}\n"
+                if summary_zh != summary_escaped:
+                    message += f"📝 {summary_zh}\n"
             message += "\n"
         return message
 
@@ -119,14 +129,16 @@ class WebhookNotifier(Notifier):
     A class to send notifications via a webhook.
     """
 
-    def __init__(self, webhook_url: str):
+    def __init__(self, webhook_url: str, translator: Optional[Translator] = None):
         """
         Initializes the WebhookNotifier.
 
         Args:
             webhook_url: The webhook URL to send messages to.
+            translator: Optional translator for translating content.
         """
         self.webhook_url = webhook_url
+        self.translator = translator or NoOpTranslator()
 
     def send(self, articles: List[Article]) -> None:
         """
@@ -157,11 +169,18 @@ class WebhookNotifier(Notifier):
         text_content = f"{heading}\n\n"
         for article in articles:
             title = article.title
+            title_zh = self.translator.translate(article.title)
             authors_text = ', '.join(article.authors) if article.authors else "Unknown"
-            text_content += f"📄 {title}\n🔗 {article.link}\n👤 {authors_text}\n"
+            text_content += f"📄 {title}\n"
+            if title_zh != title:
+                text_content += f"📄 {title_zh}\n"
+            text_content += f"🔗 {article.link}\n👤 {authors_text}\n"
             if article.summary:
                 summary = self._truncate_summary(article.summary)
+                summary_zh = self.translator.translate(summary)
                 text_content += f"📝 {summary}\n"
+                if summary_zh != summary:
+                    text_content += f"📝 {summary_zh}\n"
             text_content += "\n"
 
         return {

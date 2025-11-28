@@ -7,6 +7,7 @@ from ml_subscriber.core.hn_fetcher import HackerNewsFetcher
 from ml_subscriber.core.storage import JsonStorage
 from ml_subscriber.core.visualization import ArticleVisualizer
 from ml_subscriber.core.notification import TelegramNotifier, WebhookNotifier
+from ml_subscriber.core.translator import create_translator
 
 load_dotenv()
 
@@ -58,7 +59,16 @@ def ensure_dir(file_path):
         os.makedirs(dir_path, exist_ok=True)
 
 
-def create_notifier(notifier_type, webhook_url):
+def get_translator():
+    """Create a translator instance based on environment configuration."""
+    deepl_api_key = os.environ.get("DEEPL_API_KEY")
+    if deepl_api_key:
+        print("DeepL translation enabled.")
+        return create_translator(deepl_api_key)
+    return create_translator()
+
+
+def create_notifier(notifier_type, webhook_url, translator=None):
     """Create a notifier instance for the given type."""
     if notifier_type == "telegram":
         bot_token = os.environ.get("TELEGRAM_BOT_TOKEN")
@@ -66,21 +76,21 @@ def create_notifier(notifier_type, webhook_url):
         if not bot_token or not chat_id:
             print("Telegram credentials not found in environment variables.")
             return None
-        return TelegramNotifier(bot_token, chat_id)
+        return TelegramNotifier(bot_token, chat_id, translator=translator)
     
     if notifier_type == "webhook":
         if not webhook_url:
             print("Webhook URL not provided.")
             return None
-        return WebhookNotifier(webhook_url)
+        return WebhookNotifier(webhook_url, translator=translator)
     
     print(f"Unknown notifier type: {notifier_type}")
     return None
 
 
-def send_notification(articles, notifier_type, webhook_url):
+def send_notification(articles, notifier_type, webhook_url, translator=None):
     """Send a single notification."""
-    notifier = create_notifier(notifier_type, webhook_url)
+    notifier = create_notifier(notifier_type, webhook_url, translator=translator)
     if not notifier:
         return
     
@@ -90,26 +100,27 @@ def send_notification(articles, notifier_type, webhook_url):
     print("Notification sent.")
 
 
-def broadcast_notifications(articles, notifier_types, webhook_url):
+def broadcast_notifications(articles, notifier_types, webhook_url, translator=None):
     """Broadcast notifications to multiple channels."""
     if not notifier_types:
         print("No notification channels configured.")
         return
     
     for notifier_type in notifier_types:
-        send_notification(articles, notifier_type, webhook_url)
+        send_notification(articles, notifier_type, webhook_url, translator=translator)
 
 
 # ============================================================================
 # Command Handlers
 # ============================================================================
 
-def handle_fetch(args, webhook_url, skip_notify=False):
+def handle_fetch(args, webhook_url, translator=None, skip_notify=False):
     """Handle --fetch command: fetch articles and optionally send notifications.
     
     Args:
         args: Command line arguments.
         webhook_url: The webhook URL for notifications.
+        translator: Optional translator for translating content.
         skip_notify: If True, skip sending notifications (used when --notify is also specified).
     """
     fetcher = get_fetcher_for_source(args.source)
@@ -122,7 +133,7 @@ def handle_fetch(args, webhook_url, skip_notify=False):
             notifiers = resolve_notifiers(args.notifier, webhook_url)
             if notifiers:
                 print("Sending reminder notification.")
-                broadcast_notifications([], notifiers, webhook_url)
+                broadcast_notifications([], notifiers, webhook_url, translator=translator)
         return
 
     print(f"Successfully fetched {len(articles)} articles from {args.source}.")
@@ -149,7 +160,7 @@ def handle_fetch(args, webhook_url, skip_notify=False):
     
     if not new_articles:
         print("No new articles to notify; sending reminder.")
-    broadcast_notifications(new_articles, notifiers, webhook_url)
+    broadcast_notifications(new_articles, notifiers, webhook_url, translator=translator)
 
 
 def handle_visualize(args):
@@ -167,7 +178,7 @@ def handle_visualize(args):
     print(f"Visualization generated at {args.output}")
 
 
-def handle_notify(args, webhook_url):
+def handle_notify(args, webhook_url, translator=None):
     """Handle --notify command: send notifications for stored articles."""
     if not args.notifier:
         print("Please specify a notification channel with --notifier (telegram, webhook, or all)")
@@ -181,7 +192,7 @@ def handle_notify(args, webhook_url):
         return
 
     notifiers = resolve_notifiers(args.notifier, webhook_url)
-    broadcast_notifications(articles, notifiers, webhook_url)
+    broadcast_notifications(articles, notifiers, webhook_url, translator=translator)
 
 
 # ============================================================================
@@ -220,16 +231,17 @@ def main():
         return
 
     webhook_url = get_webhook_url(args)
+    translator = get_translator()
 
     if args.fetch:
         # Skip notifications in fetch if --notify is also specified (to avoid duplicate)
-        handle_fetch(args, webhook_url, skip_notify=args.notify)
+        handle_fetch(args, webhook_url, translator=translator, skip_notify=args.notify)
 
     if args.visualize:
         handle_visualize(args)
 
     if args.notify:
-        handle_notify(args, webhook_url)
+        handle_notify(args, webhook_url, translator=translator)
 
 
 if __name__ == "__main__":
