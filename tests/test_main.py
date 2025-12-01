@@ -242,7 +242,8 @@ class TestHandleFetch(unittest.TestCase):
             notifier="webhook",
             notify=False,
             days=1,
-            max_results=50
+            max_results=50,
+            limit=5
         )
 
     @patch('main.broadcast_notifications')
@@ -370,10 +371,39 @@ class TestHandleFetch(unittest.TestCase):
 
         handle_fetch(self.args, "http://webhook.com", skip_notify=False)
 
-        # All articles should be in notification
+        # All articles should be in notification (2 < limit of 5)
         call_args = mock_broadcast.call_args[0]
         notified_articles = call_args[0]
         self.assertEqual(len(notified_articles), 2)
+
+    @patch('main.broadcast_notifications')
+    @patch('main.JsonStorage')
+    @patch('main.ensure_dir')
+    @patch('main.get_fetcher_for_source')
+    def test_fetch_limits_notification_count(self, mock_get_fetcher, mock_ensure_dir,
+                                              mock_storage_class, mock_broadcast):
+        """Test that notification is limited to --limit articles."""
+        mock_fetcher = MagicMock()
+        # Create 10 articles
+        articles = [create_test_article(title=f"Article {i}", link=f"http://{i}.com") 
+                    for i in range(10)]
+        mock_fetcher.fetch_articles.return_value = articles
+        mock_get_fetcher.return_value = mock_fetcher
+        
+        mock_storage = MagicMock()
+        mock_storage_class.return_value = mock_storage
+
+        # Set limit to 3
+        self.args.limit = 3
+        handle_fetch(self.args, "http://webhook.com", skip_notify=False)
+
+        # Only 3 articles should be in notification
+        call_args = mock_broadcast.call_args[0]
+        notified_articles = call_args[0]
+        self.assertEqual(len(notified_articles), 3)
+        # Should be the first 3 articles
+        self.assertEqual(notified_articles[0].title, "Article 0")
+        self.assertEqual(notified_articles[2].title, "Article 2")
 
 
 class TestHandleNotify(unittest.TestCase):
@@ -502,6 +532,7 @@ class TestParseArgs(unittest.TestCase):
         self.assertEqual(args.json_output, 'output/articles.json')
         self.assertEqual(args.days, 1)
         self.assertEqual(args.max_results, 50)
+        self.assertEqual(args.limit, 5)
 
     def test_parse_days_parameter(self):
         parser = parse_args()
@@ -512,6 +543,11 @@ class TestParseArgs(unittest.TestCase):
         parser = parse_args()
         args = parser.parse_args(['--fetch', '--max-results', '100'])
         self.assertEqual(args.max_results, 100)
+
+    def test_parse_limit_parameter(self):
+        parser = parse_args()
+        args = parser.parse_args(['--fetch', '--limit', '10'])
+        self.assertEqual(args.limit, 10)
 
 
 class TestMainFunction(unittest.TestCase):

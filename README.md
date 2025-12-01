@@ -112,6 +112,7 @@
     **参数说明：**
     - `--days N` - 只获取最近 N 天发布的文章（默认 1，仅对 ArXiv 有效）
     - `--max-results N` - API 返回的最大文章数（默认 50，过滤前）
+    - `--limit N` - 最多推送 N 篇文章（默认 5）
     - `--notifier` 选项：
       - `telegram` - 仅发送到 Telegram
       - `webhook` - 仅发送到 Webhook

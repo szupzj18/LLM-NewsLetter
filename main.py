@@ -163,7 +163,13 @@ def handle_fetch(args, webhook_url, translator=None, skip_notify=False):
     if not notifiers:
         return
     
-    broadcast_notifications(articles, notifiers, webhook_url, translator=translator)
+    # Limit the number of articles to notify
+    limit = getattr(args, 'limit', 5)
+    articles_to_notify = articles[:limit] if limit else articles
+    if len(articles) > len(articles_to_notify):
+        print(f"Limiting notification to {len(articles_to_notify)} of {len(articles)} articles.")
+    
+    broadcast_notifications(articles_to_notify, notifiers, webhook_url, translator=translator)
 
 
 def handle_visualize(args):
@@ -225,6 +231,8 @@ def parse_args():
                         help='Only fetch articles from the last N days (default: 1, arxiv only)')
     parser.add_argument('--max-results', type=int, default=50,
                         help='Maximum number of articles to fetch before filtering (default: 50)')
+    parser.add_argument('--limit', type=int, default=5,
+                        help='Maximum number of articles to notify (default: 5)')
     return parser
 
 
