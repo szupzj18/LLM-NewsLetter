@@ -147,13 +147,15 @@ def handle_fetch(args, webhook_url, translator=None, skip_notify=False):
     storage = JsonStorage()
     ensure_dir(args.json_output)
     
-    # Calculate new articles (incremental)
+    # Calculate new articles (incremental) and merge with existing
     existing = storage.load_articles(args.json_output)
     existing_links = {a.link for a in existing}
     new_articles = [a for a in articles if a.link not in existing_links]
 
-    storage.save_articles(articles, args.json_output)
-    print(f"Articles saved to {args.json_output}")
+    # Merge new articles with existing ones (new articles first, then existing)
+    merged_articles = new_articles + existing
+    storage.save_articles(merged_articles, args.json_output)
+    print(f"Articles saved to {args.json_output} ({len(new_articles)} new, {len(existing)} existing)")
 
     # Send notifications only if --notify is not also specified
     if skip_notify:
