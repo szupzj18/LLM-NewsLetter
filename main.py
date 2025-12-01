@@ -130,7 +130,13 @@ def handle_fetch(args, webhook_url, translator=None, skip_notify=False):
     """
     fetcher = get_fetcher_for_source(args.source)
     query = "cat:cs.LG" if args.source == "arxiv" else ""
-    articles = fetcher.fetch_articles(query, max_results=5)
+    
+    # Pass days parameter for date filtering (only for arxiv)
+    days = getattr(args, 'days', None)
+    if args.source == "arxiv" and days is not None:
+        articles = fetcher.fetch_articles(query, max_results=args.max_results, days=days)
+    else:
+        articles = fetcher.fetch_articles(query, max_results=args.max_results)
 
     if not articles:
         print("No articles fetched.")
@@ -146,12 +152,6 @@ def handle_fetch(args, webhook_url, translator=None, skip_notify=False):
     # Store articles
     storage = JsonStorage()
     ensure_dir(args.json_output)
-    
-    # Calculate new articles (incremental)
-    existing = storage.load_articles(args.json_output)
-    existing_links = {a.link for a in existing}
-    new_articles = [a for a in articles if a.link not in existing_links]
-
     storage.save_articles(articles, args.json_output)
     print(f"Articles saved to {args.json_output}")
 
@@ -163,9 +163,13 @@ def handle_fetch(args, webhook_url, translator=None, skip_notify=False):
     if not notifiers:
         return
     
-    if not new_articles:
-        print("No new articles to notify; sending reminder.")
-    broadcast_notifications(new_articles, notifiers, webhook_url, translator=translator)
+    # Limit the number of articles to notify
+    limit = getattr(args, 'limit', 5)
+    articles_to_notify = articles[:limit] if limit else articles
+    if len(articles) > len(articles_to_notify):
+        print(f"Limiting notification to {len(articles_to_notify)} of {len(articles)} articles.")
+    
+    broadcast_notifications(articles_to_notify, notifiers, webhook_url, translator=translator)
 
 
 def handle_visualize(args):
@@ -223,6 +227,12 @@ def parse_args():
                         help='The webhook URL to send notifications to.')
     parser.add_argument('--source', type=str, choices=['arxiv', 'hn'], default='arxiv', 
                         help='Content source to fetch from')
+    parser.add_argument('--days', type=int, default=1,
+                        help='Only fetch articles from the last N days (default: 1, arxiv only)')
+    parser.add_argument('--max-results', type=int, default=50,
+                        help='Maximum number of articles to fetch before filtering (default: 50)')
+    parser.add_argument('--limit', type=int, default=5,
+                        help='Maximum number of articles to notify (default: 5)')
     return parser
 
 

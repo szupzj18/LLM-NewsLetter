@@ -16,7 +16,7 @@
   - ✅ Telegram Bot 通知
   - ✅ Webhook 通知（支持飞书、钉钉等）
   - ✅ 同时向多个渠道发送通知
-- **增量通知**：自动比较新旧文章，只通知新增内容，避免重复推送。
+- **日期过滤**：只获取指定天数内发布的文章，完全无状态，避免重复推送。
 - 将获取的文章列表存储在本地 JSON 文件中。
 - 将文章可视化为 HTML 文件，便于浏览。
 - **GitHub Actions 自动化**：支持定时自动抓取和通知。
@@ -96,18 +96,27 @@
     运行以下命令来获取最新的文章并发送通知：
 
     ```bash
-    # 使用指定的通知渠道
+    # 获取最近 1 天的 ArXiv 论文（默认）
     python3 main.py --fetch --source arxiv --notifier telegram
-    python3 main.py --fetch --source hn --json-output output/hn_articles.json --notifier webhook
 
-    # 同时向所有已配置的渠道发送通知
-    python3 main.py --fetch --source arxiv --notifier all
+    # 获取最近 2 天的论文
+    python3 main.py --fetch --source arxiv --days 2 --notifier webhook
+
+    # 获取更多论文（增加 API 返回数量以便过滤）
+    python3 main.py --fetch --source arxiv --days 1 --max-results 100 --notifier all
+
+    # 获取 Hacker News 热门资讯
+    python3 main.py --fetch --source hn --json-output output/hn_articles.json --notifier webhook
     ```
 
-    支持的 `--notifier` 选项：
-    - `telegram` - 仅发送到 Telegram
-    - `webhook` - 仅发送到 Webhook
-    - `all` - 自动检测并发送到所有已配置的渠道
+    **参数说明：**
+    - `--days N` - 只获取最近 N 天发布的文章（默认 1，仅对 ArXiv 有效）
+    - `--max-results N` - API 返回的最大文章数（默认 50，过滤前）
+    - `--limit N` - 最多推送 N 篇文章（默认 5）
+    - `--notifier` 选项：
+      - `telegram` - 仅发送到 Telegram
+      - `webhook` - 仅发送到 Webhook
+      - `all` - 自动检测并发送到所有已配置的渠道
 
 6.  **可视化文章**
 
