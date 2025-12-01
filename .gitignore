@@ -1,9 +1,7 @@
 
 # Environment variables
 .env
-
-# Output directory - ignore generated HTML but keep JSON for article history
-output/*.html
+output/
 
 # Python cache
 __pycache__/

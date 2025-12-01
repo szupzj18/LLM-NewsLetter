@@ -240,7 +240,9 @@ class TestHandleFetch(unittest.TestCase):
             source="arxiv",
             json_output="output/test.json",
             notifier="webhook",
-            notify=False
+            notify=False,
+            days=1,
+            max_results=50
         )
 
     @patch('main.broadcast_notifications')
@@ -255,7 +257,6 @@ class TestHandleFetch(unittest.TestCase):
         mock_get_fetcher.return_value = mock_fetcher
         
         mock_storage = MagicMock()
-        mock_storage.load_articles.return_value = []
         mock_storage_class.return_value = mock_storage
 
         handle_fetch(self.args, "http://webhook.com")
@@ -278,7 +279,6 @@ class TestHandleFetch(unittest.TestCase):
         mock_get_fetcher.return_value = mock_fetcher
         
         mock_storage = MagicMock()
-        mock_storage.load_articles.return_value = []
         mock_storage_class.return_value = mock_storage
 
         handle_fetch(self.args, "http://webhook.com", skip_notify=False)
@@ -299,7 +299,6 @@ class TestHandleFetch(unittest.TestCase):
         mock_get_fetcher.return_value = mock_fetcher
         
         mock_storage = MagicMock()
-        mock_storage.load_articles.return_value = []
         mock_storage_class.return_value = mock_storage
 
         handle_fetch(self.args, "http://webhook.com", skip_notify=True)
@@ -336,27 +335,45 @@ class TestHandleFetch(unittest.TestCase):
     @patch('main.JsonStorage')
     @patch('main.ensure_dir')
     @patch('main.get_fetcher_for_source')
-    def test_fetch_only_notifies_new_articles(self, mock_get_fetcher, mock_ensure_dir,
-                                               mock_storage_class, mock_broadcast):
-        """Test that only new articles are included in notification."""
+    def test_fetch_passes_days_parameter(self, mock_get_fetcher, mock_ensure_dir,
+                                          mock_storage_class, mock_broadcast):
+        """Test that days parameter is passed to fetcher for arxiv source."""
         mock_fetcher = MagicMock()
-        new_article = create_test_article(title="New", link="http://new.com")
-        existing_article = create_test_article(title="Existing", link="http://existing.com")
-        mock_fetcher.fetch_articles.return_value = [new_article, existing_article]
+        mock_fetcher.fetch_articles.return_value = [create_test_article()]
         mock_get_fetcher.return_value = mock_fetcher
         
         mock_storage = MagicMock()
-        # Simulate existing_article already stored
-        mock_storage.load_articles.return_value = [existing_article]
         mock_storage_class.return_value = mock_storage
 
         handle_fetch(self.args, "http://webhook.com", skip_notify=False)
 
-        # Only new_article should be in notification
+        # Check that days parameter was passed
+        mock_fetcher.fetch_articles.assert_called_once_with(
+            "cat:cs.LG", max_results=50, days=1
+        )
+
+    @patch('main.broadcast_notifications')
+    @patch('main.JsonStorage')
+    @patch('main.ensure_dir')
+    @patch('main.get_fetcher_for_source')
+    def test_fetch_notifies_all_fetched_articles(self, mock_get_fetcher, mock_ensure_dir,
+                                                  mock_storage_class, mock_broadcast):
+        """Test that all fetched articles are included in notification."""
+        mock_fetcher = MagicMock()
+        article1 = create_test_article(title="Article 1", link="http://1.com")
+        article2 = create_test_article(title="Article 2", link="http://2.com")
+        mock_fetcher.fetch_articles.return_value = [article1, article2]
+        mock_get_fetcher.return_value = mock_fetcher
+        
+        mock_storage = MagicMock()
+        mock_storage_class.return_value = mock_storage
+
+        handle_fetch(self.args, "http://webhook.com", skip_notify=False)
+
+        # All articles should be in notification
         call_args = mock_broadcast.call_args[0]
         notified_articles = call_args[0]
-        self.assertEqual(len(notified_articles), 1)
-        self.assertEqual(notified_articles[0].link, "http://new.com")
+        self.assertEqual(len(notified_articles), 2)
 
 
 class TestHandleNotify(unittest.TestCase):
@@ -483,6 +500,18 @@ class TestParseArgs(unittest.TestCase):
         self.assertEqual(args.source, 'arxiv')
         self.assertEqual(args.output, 'output/articles.html')
         self.assertEqual(args.json_output, 'output/articles.json')
+        self.assertEqual(args.days, 1)
+        self.assertEqual(args.max_results, 50)
+
+    def test_parse_days_parameter(self):
+        parser = parse_args()
+        args = parser.parse_args(['--fetch', '--days', '3'])
+        self.assertEqual(args.days, 3)
+
+    def test_parse_max_results_parameter(self):
+        parser = parse_args()
+        args = parser.parse_args(['--fetch', '--max-results', '100'])
+        self.assertEqual(args.max_results, 100)
 
 
 class TestMainFunction(unittest.TestCase):
