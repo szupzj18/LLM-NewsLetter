@@ -37,14 +37,14 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      # 5. Fetch ArXiv articles and notify
+      # 5. Fetch ArXiv articles and notify (only articles from last 1 day)
       - name: Fetch ArXiv articles
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
           WEBHOOK_URL: ${{ secrets.WEBHOOK_URL }}
         run: |
-          python3 main.py --fetch --source arxiv --json-output output/arxiv_articles.json --notifier all
+          python3 main.py --fetch --source arxiv --days 1 --max-results 50 --json-output output/arxiv_articles.json --notifier all
 
       # 6. Fetch Hacker News articles and notify
       - name: Fetch Hacker News articles
