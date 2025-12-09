@@ -79,7 +79,7 @@ class TelegramNotifier(Notifier):
             message += f'📄 <b><a href="{article.link}">{title}</a></b>\n'
             if title_zh != title:
                 message += f"📄 <b>{title_zh}</b>\n"
-            if article.summary:
+            if article.summary and not self._is_default_hn_summary(article):
                 summary = self._truncate_summary(article.summary)
                 summary_escaped = self._escape_html(summary)
                 summary_zh = self._escape_html(self.translator.translate(summary))
@@ -100,6 +100,13 @@ class TelegramNotifier(Notifier):
         if source == "arxiv":
             return "✨ <b>New ML/DL Papers Found!</b> ✨"
         return "📢 <b>New Articles</b>"
+
+    def _is_default_hn_summary(self, article: Article) -> bool:
+        """Check if article is a HN story with the default summary."""
+        return (
+            article.metadata.get("source") == "hn"
+            and article.summary == "Hacker News story"
+        )
 
     def _send_no_article_reminder(self):
         message = "📭 <b>No new articles this time.</b>"
@@ -171,7 +178,7 @@ class WebhookNotifier(Notifier):
             if title_zh != title:
                 text_content += f"📄 {title_zh}\n"
             text_content += f"🔗 {article.link}\n"
-            if article.summary:
+            if article.summary and not self._is_default_hn_summary(article):
                 summary = self._truncate_summary(article.summary)
                 summary_zh = self.translator.translate(summary)
                 text_content += f"📝 {summary}\n"
@@ -197,6 +204,13 @@ class WebhookNotifier(Notifier):
         if source == "arxiv":
             return "✨ New ML/DL Papers Found! ✨"
         return "📢 New Articles"
+
+    def _is_default_hn_summary(self, article: Article) -> bool:
+        """Check if article is a HN story with the default summary."""
+        return (
+            article.metadata.get("source") == "hn"
+            and article.summary == "Hacker News story"
+        )
 
     def _send_no_article_reminder(self):
         message = {
