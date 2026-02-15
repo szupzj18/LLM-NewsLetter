@@ -87,6 +87,17 @@ class TelegramNotifier(Notifier):
             escaped = escaped.replace(ch, f"\\{ch}")
         return escaped
 
+    @staticmethod
+    def _escape_markdown_v2_url(url: str) -> str:
+        """Escape only characters that need escaping inside MarkdownV2 inline URL parentheses.
+
+        Per the Telegram Bot API spec, inside the (...) part of an inline link
+        only ')' and '\\' must be escaped.
+        """
+        if url is None:
+            return ""
+        return url.replace("\\", "\\\\").replace(")", "\\)")
+
     def _truncate_summary(self, summary: str, max_length: int = 300) -> str:
         """Truncates a summary to a maximum length."""
         if not summary or len(summary) <= max_length:
@@ -124,7 +135,7 @@ class TelegramNotifier(Notifier):
         parts: List[str] = [heading, ""]
         for article in articles:
             title = self._escape_markdown_v2(article.title)
-            link = self._escape_markdown_v2(article.link)
+            link = self._escape_markdown_v2_url(article.link)
             parts.append(f"📄 [{title}]({link})")
 
             title_zh_raw = self.translator.translate(article.title)
@@ -291,8 +302,6 @@ class WebhookNotifier(Notifier):
         title = self._heading_for_source(source)
 
         content: List[List[Dict[str, Any]]] = []
-        # Heading as first paragraph
-        content.append([{"tag": "text", "text": title}])
 
         for article in articles:
             # Title with link
