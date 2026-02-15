@@ -1,6 +1,6 @@
 import abc
 import html
-from typing import List, Optional
+from typing import Any, List, Optional
 
 import requests
 
@@ -23,10 +23,74 @@ class Notifier(abc.ABC):
         raise NotImplementedError
 
 
-class TelegramNotifier(Notifier):
+class ArticleNotifier(Notifier, abc.ABC):
+    """Shared behavior for article-based notifiers."""
+
+    HEADING_HN = "🚀 Hacker News 热门讨论"
+    HEADING_ARXIV = "✨ New ML/DL Papers Found! ✨"
+    HEADING_DEFAULT = "📢 New Articles"
+
+    def __init__(self, translator: Optional[Translator] = None):
+        self.translator = translator or NoOpTranslator()
+
+    def send(self, articles: List[Article]) -> None:
+        """Sends a list of articles as a notification."""
+        if not articles:
+            self._send_no_article_reminder()
+            return
+
+        message = self._format_message(articles)
+        self._send_message(message)
+
+    def _truncate_summary(self, summary: str, max_length: int = 300) -> str:
+        """Truncates a summary to a maximum length."""
+        if not summary or len(summary) <= max_length:
+            return summary
+        return summary[:max_length].rsplit(' ', 1)[0] + "..."
+
+    def _infer_source(self, articles: List[Article]) -> str:
+        if not articles:
+            return "unknown"
+        return articles[0].metadata.get("source", "unknown")
+
+    def _heading_for_source(self, source: str) -> str:
+        if source == "hn":
+            return self.HEADING_HN
+        if source == "arxiv":
+            return self.HEADING_ARXIV
+        return self.HEADING_DEFAULT
+
+    def _is_default_hn_summary(self, article: Article) -> bool:
+        """Check if article is a HN story with the default summary."""
+        return (
+            article.metadata.get("source") == "hn"
+            and article.summary == "Hacker News story"
+        )
+
+    @abc.abstractmethod
+    def _format_message(self, articles: List[Article]) -> Any:
+        """Formats articles into a notifier-specific payload."""
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def _send_no_article_reminder(self):
+        """Sends a reminder payload when there are no new articles."""
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def _send_message(self, message: Any):
+        """Sends a notifier-specific payload."""
+        raise NotImplementedError
+
+
+class TelegramNotifier(ArticleNotifier):
     """
     A class to send notifications to a Telegram chat.
     """
+
+    HEADING_HN = "🚀 <b>Hacker News 热门讨论</b>"
+    HEADING_ARXIV = "✨ <b>New ML/DL Papers Found!</b> ✨"
+    HEADING_DEFAULT = "📢 <b>New Articles</b>"
 
     def __init__(self, bot_token: str, chat_id: str, translator: Optional[Translator] = None):
         """
@@ -40,31 +104,11 @@ class TelegramNotifier(Notifier):
         self.bot_token = bot_token
         self.chat_id = chat_id
         self.api_url = f"https://api.telegram.org/bot{self.bot_token}/sendMessage"
-        self.translator = translator or NoOpTranslator()
-
-    def send(self, articles: List[Article]) -> None:
-        """
-        Sends a list of articles as a notification.
-
-        Args:
-            articles: A list of Article objects.
-        """
-        if not articles:
-            self._send_no_article_reminder()
-            return
-
-        message = self._format_message(articles)
-        self._send_message(message)
+        super().__init__(translator=translator)
 
     def _escape_html(self, text: str) -> str:
         """Escapes text for Telegram's HTML parser."""
         return html.escape(text)
-
-    def _truncate_summary(self, summary: str, max_length: int = 300) -> str:
-        """Truncates a summary to a maximum length."""
-        if not summary or len(summary) <= max_length:
-            return summary
-        return summary[:max_length].rsplit(' ', 1)[0] + "..."
 
     def _format_message(self, articles: List[Article]) -> str:
         """
@@ -89,25 +133,6 @@ class TelegramNotifier(Notifier):
             message += "\n"
         return message
 
-    def _infer_source(self, articles: List[Article]) -> str:
-        if not articles:
-            return "unknown"
-        return articles[0].metadata.get("source", "unknown")
-
-    def _heading_for_source(self, source: str) -> str:
-        if source == "hn":
-            return "🚀 <b>Hacker News 热门讨论</b>"
-        if source == "arxiv":
-            return "✨ <b>New ML/DL Papers Found!</b> ✨"
-        return "📢 <b>New Articles</b>"
-
-    def _is_default_hn_summary(self, article: Article) -> bool:
-        """Check if article is a HN story with the default summary."""
-        return (
-            article.metadata.get("source") == "hn"
-            and article.summary == "Hacker News story"
-        )
-
     def _send_no_article_reminder(self):
         message = "📭 <b>No new articles this time.</b>"
         self._send_message(message)
@@ -128,7 +153,7 @@ class TelegramNotifier(Notifier):
             print(f"Error sending message to Telegram: {e}")
 
 
-class WebhookNotifier(Notifier):
+class WebhookNotifier(ArticleNotifier):
     """
     A class to send notifications via a webhook.
     """
@@ -142,27 +167,7 @@ class WebhookNotifier(Notifier):
             translator: Optional translator for translating content.
         """
         self.webhook_url = webhook_url
-        self.translator = translator or NoOpTranslator()
-
-    def send(self, articles: List[Article]) -> None:
-        """
-        Sends a list of articles as a notification.
-
-        Args:
-            articles: A list of Article objects.
-        """
-        if not articles:
-            self._send_no_article_reminder()
-            return
-
-        message = self._format_message(articles)
-        self._send_message(message)
-
-    def _truncate_summary(self, summary: str, max_length: int = 300) -> str:
-        """Truncates a summary to a maximum length."""
-        if not summary or len(summary) <= max_length:
-            return summary
-        return summary[:max_length].rsplit(' ', 1)[0] + "..."
+        super().__init__(translator=translator)
 
     def _format_message(self, articles: List[Article]) -> dict:
         """
@@ -192,25 +197,6 @@ class WebhookNotifier(Notifier):
                 "text": text_content
             }
         }
-
-    def _infer_source(self, articles: List[Article]) -> str:
-        if not articles:
-            return "unknown"
-        return articles[0].metadata.get("source", "unknown")
-
-    def _heading_for_source(self, source: str) -> str:
-        if source == "hn":
-            return "🚀 Hacker News 热门讨论"
-        if source == "arxiv":
-            return "✨ New ML/DL Papers Found! ✨"
-        return "📢 New Articles"
-
-    def _is_default_hn_summary(self, article: Article) -> bool:
-        """Check if article is a HN story with the default summary."""
-        return (
-            article.metadata.get("source") == "hn"
-            and article.summary == "Hacker News story"
-        )
 
     def _send_no_article_reminder(self):
         message = {

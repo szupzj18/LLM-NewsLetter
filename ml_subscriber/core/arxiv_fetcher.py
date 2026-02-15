@@ -11,6 +11,7 @@ class ArxivFetcher:
     """Fetches and parses articles from ArXiv."""
 
     BASE_URL = "http://export.arxiv.org/api/query"
+    ATOM_NS = "{http://www.w3.org/2005/Atom}"
 
     def fetch_articles(
         self,
@@ -70,10 +71,7 @@ class ArxivFetcher:
             if not article.published_date:
                 continue
             try:
-                # ArXiv date format: 2024-01-15T12:00:00Z
-                pub_date = datetime.fromisoformat(
-                    article.published_date.replace("Z", "+00:00")
-                )
+                pub_date = self._parse_published_date(article.published_date)
                 if pub_date >= cutoff:
                     filtered.append(article)
             except ValueError:
@@ -81,6 +79,84 @@ class ArxivFetcher:
                 continue
 
         return filtered
+
+    def _parse_published_date(self, date_str: str) -> datetime:
+        """Parse ArXiv published date into a timezone-aware datetime."""
+        # ArXiv date format: 2024-01-15T12:00:00Z
+        return datetime.fromisoformat(date_str.replace("Z", "+00:00"))
+
+    def _atom_tag(self, tag_name: str) -> str:
+        """Build a namespaced Atom tag."""
+        return f"{self.ATOM_NS}{tag_name}"
+
+    def _required_text(self, entry: ET.Element, tag_name: str) -> Optional[str]:
+        """Extract required text content from entry; returns None when missing."""
+        element = entry.find(self._atom_tag(tag_name))
+        if element is None or element.text is None:
+            return None
+        return element.text.strip()
+
+    def _optional_text(self, entry: ET.Element, tag_name: str) -> str:
+        """Extract optional text content from entry with empty default."""
+        element = entry.find(self._atom_tag(tag_name))
+        if element is None or element.text is None:
+            return ""
+        return element.text.strip()
+
+    def _extract_published_date(self, entry: ET.Element) -> str:
+        """Extract published date while preserving current raw field behavior."""
+        element = entry.find(self._atom_tag("published"))
+        if element is None or element.text is None:
+            return ""
+        return element.text
+
+    def _extract_authors(self, entry: ET.Element) -> List[str]:
+        """Extract author names from an Atom entry."""
+        authors = []
+        for author in entry.findall(self._atom_tag("author")):
+            name_elem = author.find(self._atom_tag("name"))
+            if name_elem is not None and name_elem.text:
+                authors.append(name_elem.text)
+        return authors
+
+    def _extract_pdf_link(self, entry: ET.Element) -> str:
+        """Extract PDF link from an Atom entry."""
+        for link_element in entry.findall(self._atom_tag("link")):
+            if link_element.get("title") == "pdf":
+                return link_element.get("href") or ""
+        return ""
+
+    def _normalize_whitespace(self, value: str) -> str:
+        """Collapse repeated whitespace for title/summary fields."""
+        return " ".join(value.split())
+
+    def _parse_entry(self, entry: ET.Element) -> Optional[Article]:
+        """Parse a single Atom entry into an Article."""
+        title = self._required_text(entry, "title")
+        link = self._required_text(entry, "id")
+
+        # Skip entries with missing required fields
+        if title is None or link is None:
+            return None
+
+        summary = self._optional_text(entry, "summary")
+        published_date = self._extract_published_date(entry)
+        authors = self._extract_authors(entry)
+        pdf_link = self._extract_pdf_link(entry)
+
+        # Clean up and strip whitespace
+        title = self._normalize_whitespace(title)
+        summary = self._normalize_whitespace(summary)
+
+        return Article(
+            title=title,
+            authors=authors,
+            summary=summary,
+            link=link,
+            published_date=published_date,
+            pdf_link=pdf_link,
+            metadata={"source": "arxiv"},
+        )
 
     def _parse_xml(self, xml_data: str) -> List[Article]:
         """
@@ -94,49 +170,8 @@ class ArxivFetcher:
         """
         root = ET.fromstring(xml_data)
         articles = []
-        for entry in root.findall("{http://www.w3.org/2005/Atom}entry"):
-            # Safely extract text with None checks
-            title_elem = entry.find("{http://www.w3.org/2005/Atom}title")
-            link_elem = entry.find("{http://www.w3.org/2005/Atom}id")
-            summary_elem = entry.find("{http://www.w3.org/2005/Atom}summary")
-            published_elem = entry.find("{http://www.w3.org/2005/Atom}published")
-
-            # Skip entries with missing required fields
-            if title_elem is None or title_elem.text is None:
-                continue
-            if link_elem is None or link_elem.text is None:
-                continue
-
-            title = title_elem.text.strip()
-            link = link_elem.text.strip()
-            summary = summary_elem.text.strip() if summary_elem is not None and summary_elem.text else ""
-            published_date = published_elem.text if published_elem is not None and published_elem.text else ""
-
-            authors = []
-            for author in entry.findall("{http://www.w3.org/2005/Atom}author"):
-                name_elem = author.find("{http://www.w3.org/2005/Atom}name")
-                if name_elem is not None and name_elem.text:
-                    authors.append(name_elem.text)
-
-            pdf_link = ""
-            for link_element in entry.findall("{http://www.w3.org/2005/Atom}link"):
-                if link_element.get("title") == "pdf":
-                    pdf_link = link_element.get("href") or ""
-                    break
-
-            # Clean up and strip whitespace
-            title = " ".join(title.split())
-            summary = " ".join(summary.split())
-
-            articles.append(
-                Article(
-                    title=title,
-                    authors=authors,
-                    summary=summary,
-                    link=link,
-                    published_date=published_date,
-                    pdf_link=pdf_link,
-                    metadata={"source": "arxiv"},
-                )
-            )
+        for entry in root.findall(self._atom_tag("entry")):
+            article = self._parse_entry(entry)
+            if article is not None:
+                articles.append(article)
         return articles
