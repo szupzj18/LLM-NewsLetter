@@ -104,7 +104,7 @@ class TestTelegramNotifier(unittest.TestCase):
 class TestWebhookNotifier(unittest.TestCase):
 
     def setUp(self):
-        self.webhook_url = "http://test-webhook.com"
+        self.webhook_url = "https://open.feishu.cn/open-apis/bot/v2/hook/test-webhook"
         self.notifier = WebhookNotifier(self.webhook_url)
 
     @patch('requests.post')
@@ -274,7 +274,7 @@ class TestWebhookNotifierWithTranslation(unittest.TestCase):
     """Tests for WebhookNotifier with translation enabled."""
 
     def setUp(self):
-        self.webhook_url = "http://test-webhook.com"
+        self.webhook_url = "https://open.feishu.cn/open-apis/bot/v2/hook/test-webhook"
         self.translator = MockTranslator()
         self.notifier = WebhookNotifier(self.webhook_url, translator=self.translator)
 
