@@ -278,6 +278,33 @@ class TestArxivFetcher(unittest.TestCase):
         # Article without date should be skipped when filtering
         self.assertEqual(len(articles), 0)
 
+    @patch("ml_subscriber.core.arxiv_fetcher.requests.get")
+    def test_fetch_articles_days_filter_parses_whitespace_published_date(self, mock_get):
+        """Test that surrounding whitespace in published date is safely handled."""
+        today = datetime.now(timezone.utc)
+        published_with_whitespace = f"  {today.strftime('%Y-%m-%dT%H:%M:%SZ')}  "
+
+        mock_response = Mock()
+        mock_response.status_code = 200
+        mock_response.text = f"""
+        <feed xmlns=\"http://www.w3.org/2005/Atom\">
+          <entry>
+            <id>http://example.com/1</id>
+            <title>Whitespace Date Article</title>
+            <summary>Summary</summary>
+            <author><name>Author</name></author>
+            <published>{published_with_whitespace}</published>
+          </entry>
+        </feed>
+        """
+        mock_get.return_value = mock_response
+
+        fetcher = ArxivFetcher()
+        articles = fetcher.fetch_articles("cat:cs.AI", max_results=10, days=1)
+
+        self.assertEqual(len(articles), 1)
+        self.assertEqual(articles[0].title, "Whitespace Date Article")
+
 
 if __name__ == "__main__":
     unittest.main()

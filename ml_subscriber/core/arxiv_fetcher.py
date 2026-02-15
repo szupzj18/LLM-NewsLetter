@@ -108,7 +108,7 @@ class ArxivFetcher:
         element = entry.find(self._atom_tag("published"))
         if element is None or element.text is None:
             return ""
-        return element.text
+        return element.text.strip()
 
     def _extract_authors(self, entry: ET.Element) -> List[str]:
         """Extract author names from an Atom entry."""

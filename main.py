@@ -89,8 +89,8 @@ def save_articles_to_json(articles, json_output):
 
 def limit_articles_for_notification(articles, limit):
     """Apply notification limit while preserving existing CLI semantics."""
-    articles_to_notify = articles[:limit] if limit else articles
-    if len(articles) > len(articles_to_notify):
+    articles_to_notify = articles[:limit] if limit is not None else articles
+    if limit is not None and len(articles) > len(articles_to_notify):
         print(
             f"Limiting notification to {len(articles_to_notify)} of {len(articles)} articles."
         )

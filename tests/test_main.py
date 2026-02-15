@@ -405,6 +405,29 @@ class TestHandleFetch(unittest.TestCase):
         self.assertEqual(notified_articles[0].title, "Article 0")
         self.assertEqual(notified_articles[2].title, "Article 2")
 
+    @patch('main.broadcast_notifications')
+    @patch('main.JsonStorage')
+    @patch('main.ensure_dir')
+    @patch('main.get_fetcher_for_source')
+    def test_fetch_limit_zero_sends_zero_articles(self, mock_get_fetcher, mock_ensure_dir,
+                                                   mock_storage_class, mock_broadcast):
+        """Test that --limit 0 sends zero articles (not unlimited)."""
+        mock_fetcher = MagicMock()
+        articles = [create_test_article(title=f"Article {i}", link=f"http://{i}.com")
+                    for i in range(3)]
+        mock_fetcher.fetch_articles.return_value = articles
+        mock_get_fetcher.return_value = mock_fetcher
+
+        mock_storage = MagicMock()
+        mock_storage_class.return_value = mock_storage
+
+        self.args.limit = 0
+        handle_fetch(self.args, "http://webhook.com", skip_notify=False)
+
+        call_args = mock_broadcast.call_args[0]
+        notified_articles = call_args[0]
+        self.assertEqual(len(notified_articles), 0)
+
 
 class TestHandleNotify(unittest.TestCase):
     """Test handle_notify function."""
