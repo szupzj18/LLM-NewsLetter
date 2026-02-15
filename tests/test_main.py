@@ -1,5 +1,5 @@
 import unittest
-from unittest.mock import patch, MagicMock, call
+from unittest.mock import patch, MagicMock
 import argparse
 import sys
 import os
@@ -187,17 +187,7 @@ class TestSendNotification(unittest.TestCase):
         mock_notifier = MagicMock()
         mock_create_notifier.return_value = mock_notifier
         
-        articles = [
-            Article(
-                title="Test",
-                authors=["Author"],
-                summary="Summary",
-                link="http://test.com",
-                published_date="2023-01-01",
-                pdf_link="",
-                metadata={}
-            )
-        ]
+        articles = [create_test_article()]
         
         send_notification(articles, "telegram", None)
         
@@ -246,6 +236,21 @@ class TestHandleFetch(unittest.TestCase):
             limit=5
         )
 
+    def _setup_fetch_mocks(self, mock_get_fetcher, mock_storage_class=None, articles=None):
+        """Set up shared fetch/storage mocks for handle_fetch tests."""
+        mock_fetcher = MagicMock()
+        mock_fetcher.fetch_articles.return_value = (
+            articles if articles is not None else [create_test_article()]
+        )
+        mock_get_fetcher.return_value = mock_fetcher
+
+        mock_storage = None
+        if mock_storage_class is not None:
+            mock_storage = MagicMock()
+            mock_storage_class.return_value = mock_storage
+
+        return mock_fetcher, mock_storage
+
     @patch('main.broadcast_notifications')
     @patch('main.JsonStorage')
     @patch('main.ensure_dir')
@@ -253,12 +258,9 @@ class TestHandleFetch(unittest.TestCase):
     def test_fetch_saves_articles(self, mock_get_fetcher, mock_ensure_dir, 
                                    mock_storage_class, mock_broadcast):
         """Test that fetched articles are saved."""
-        mock_fetcher = MagicMock()
-        mock_fetcher.fetch_articles.return_value = [create_test_article()]
-        mock_get_fetcher.return_value = mock_fetcher
-        
-        mock_storage = MagicMock()
-        mock_storage_class.return_value = mock_storage
+        _, mock_storage = self._setup_fetch_mocks(
+            mock_get_fetcher, mock_storage_class=mock_storage_class
+        )
 
         handle_fetch(self.args, "http://webhook.com")
 
@@ -274,13 +276,10 @@ class TestHandleFetch(unittest.TestCase):
                                                         mock_storage_class, 
                                                         mock_broadcast):
         """Test that notifications are sent when skip_notify=False."""
-        mock_fetcher = MagicMock()
         articles = [create_test_article()]
-        mock_fetcher.fetch_articles.return_value = articles
-        mock_get_fetcher.return_value = mock_fetcher
-        
-        mock_storage = MagicMock()
-        mock_storage_class.return_value = mock_storage
+        self._setup_fetch_mocks(
+            mock_get_fetcher, mock_storage_class=mock_storage_class, articles=articles
+        )
 
         handle_fetch(self.args, "http://webhook.com", skip_notify=False)
 
@@ -295,12 +294,7 @@ class TestHandleFetch(unittest.TestCase):
                                                              mock_storage_class,
                                                              mock_broadcast):
         """Test that notifications are skipped when skip_notify=True."""
-        mock_fetcher = MagicMock()
-        mock_fetcher.fetch_articles.return_value = [create_test_article()]
-        mock_get_fetcher.return_value = mock_fetcher
-        
-        mock_storage = MagicMock()
-        mock_storage_class.return_value = mock_storage
+        self._setup_fetch_mocks(mock_get_fetcher, mock_storage_class=mock_storage_class)
 
         handle_fetch(self.args, "http://webhook.com", skip_notify=True)
 
@@ -311,9 +305,7 @@ class TestHandleFetch(unittest.TestCase):
     @patch('main.get_fetcher_for_source')
     def test_fetch_handles_no_articles(self, mock_get_fetcher, mock_broadcast):
         """Test behavior when no articles are fetched."""
-        mock_fetcher = MagicMock()
-        mock_fetcher.fetch_articles.return_value = []
-        mock_get_fetcher.return_value = mock_fetcher
+        self._setup_fetch_mocks(mock_get_fetcher, articles=[])
 
         handle_fetch(self.args, "http://webhook.com", translator=None, skip_notify=False)
 
@@ -324,9 +316,7 @@ class TestHandleFetch(unittest.TestCase):
     @patch('main.get_fetcher_for_source')
     def test_fetch_no_articles_skip_notify(self, mock_get_fetcher, mock_broadcast):
         """Test that no notification is sent when no articles and skip_notify=True."""
-        mock_fetcher = MagicMock()
-        mock_fetcher.fetch_articles.return_value = []
-        mock_get_fetcher.return_value = mock_fetcher
+        self._setup_fetch_mocks(mock_get_fetcher, articles=[])
 
         handle_fetch(self.args, "http://webhook.com", skip_notify=True)
 
@@ -339,12 +329,9 @@ class TestHandleFetch(unittest.TestCase):
     def test_fetch_passes_days_parameter(self, mock_get_fetcher, mock_ensure_dir,
                                           mock_storage_class, mock_broadcast):
         """Test that days parameter is passed to fetcher for arxiv source."""
-        mock_fetcher = MagicMock()
-        mock_fetcher.fetch_articles.return_value = [create_test_article()]
-        mock_get_fetcher.return_value = mock_fetcher
-        
-        mock_storage = MagicMock()
-        mock_storage_class.return_value = mock_storage
+        mock_fetcher, _ = self._setup_fetch_mocks(
+            mock_get_fetcher, mock_storage_class=mock_storage_class
+        )
 
         handle_fetch(self.args, "http://webhook.com", skip_notify=False)
 
@@ -360,14 +347,13 @@ class TestHandleFetch(unittest.TestCase):
     def test_fetch_notifies_all_fetched_articles(self, mock_get_fetcher, mock_ensure_dir,
                                                   mock_storage_class, mock_broadcast):
         """Test that all fetched articles are included in notification."""
-        mock_fetcher = MagicMock()
         article1 = create_test_article(title="Article 1", link="http://1.com")
         article2 = create_test_article(title="Article 2", link="http://2.com")
-        mock_fetcher.fetch_articles.return_value = [article1, article2]
-        mock_get_fetcher.return_value = mock_fetcher
-        
-        mock_storage = MagicMock()
-        mock_storage_class.return_value = mock_storage
+        self._setup_fetch_mocks(
+            mock_get_fetcher,
+            mock_storage_class=mock_storage_class,
+            articles=[article1, article2],
+        )
 
         handle_fetch(self.args, "http://webhook.com", skip_notify=False)
 
@@ -383,15 +369,12 @@ class TestHandleFetch(unittest.TestCase):
     def test_fetch_limits_notification_count(self, mock_get_fetcher, mock_ensure_dir,
                                               mock_storage_class, mock_broadcast):
         """Test that notification is limited to --limit articles."""
-        mock_fetcher = MagicMock()
         # Create 10 articles
         articles = [create_test_article(title=f"Article {i}", link=f"http://{i}.com") 
                     for i in range(10)]
-        mock_fetcher.fetch_articles.return_value = articles
-        mock_get_fetcher.return_value = mock_fetcher
-        
-        mock_storage = MagicMock()
-        mock_storage_class.return_value = mock_storage
+        self._setup_fetch_mocks(
+            mock_get_fetcher, mock_storage_class=mock_storage_class, articles=articles
+        )
 
         # Set limit to 3
         self.args.limit = 3
@@ -412,14 +395,11 @@ class TestHandleFetch(unittest.TestCase):
     def test_fetch_limit_zero_sends_zero_articles(self, mock_get_fetcher, mock_ensure_dir,
                                                    mock_storage_class, mock_broadcast):
         """Test that --limit 0 sends zero articles (not unlimited)."""
-        mock_fetcher = MagicMock()
         articles = [create_test_article(title=f"Article {i}", link=f"http://{i}.com")
                     for i in range(3)]
-        mock_fetcher.fetch_articles.return_value = articles
-        mock_get_fetcher.return_value = mock_fetcher
-
-        mock_storage = MagicMock()
-        mock_storage_class.return_value = mock_storage
+        self._setup_fetch_mocks(
+            mock_get_fetcher, mock_storage_class=mock_storage_class, articles=articles
+        )
 
         self.args.limit = 0
         handle_fetch(self.args, "http://webhook.com", skip_notify=False)
@@ -520,36 +500,31 @@ class TestHandleVisualize(unittest.TestCase):
 class TestParseArgs(unittest.TestCase):
     """Test parse_args function."""
 
-    def test_parse_fetch_flag(self):
-        parser = parse_args()
-        args = parser.parse_args(['--fetch'])
-        self.assertTrue(args.fetch)
+    def setUp(self):
+        self.parser = parse_args()
 
-    def test_parse_notify_flag(self):
-        parser = parse_args()
-        args = parser.parse_args(['--notify'])
-        self.assertTrue(args.notify)
-
-    def test_parse_visualize_flag(self):
-        parser = parse_args()
-        args = parser.parse_args(['--visualize'])
-        self.assertTrue(args.visualize)
+    def test_parse_action_flags(self):
+        for flag, attr in [
+            ("--fetch", "fetch"),
+            ("--notify", "notify"),
+            ("--visualize", "visualize"),
+        ]:
+            with self.subTest(flag=flag):
+                args = self.parser.parse_args([flag])
+                self.assertTrue(getattr(args, attr))
 
     def test_parse_notifier_choices(self):
-        parser = parse_args()
         for choice in ['telegram', 'webhook', 'all']:
-            args = parser.parse_args(['--fetch', '--notifier', choice])
+            args = self.parser.parse_args(['--fetch', '--notifier', choice])
             self.assertEqual(args.notifier, choice)
 
     def test_parse_source_choices(self):
-        parser = parse_args()
         for choice in ['arxiv', 'hn']:
-            args = parser.parse_args(['--fetch', '--source', choice])
+            args = self.parser.parse_args(['--fetch', '--source', choice])
             self.assertEqual(args.source, choice)
 
     def test_default_values(self):
-        parser = parse_args()
-        args = parser.parse_args(['--fetch'])
+        args = self.parser.parse_args(['--fetch'])
         self.assertEqual(args.source, 'arxiv')
         self.assertEqual(args.output, 'output/articles.html')
         self.assertEqual(args.json_output, 'output/articles.json')
@@ -557,20 +532,15 @@ class TestParseArgs(unittest.TestCase):
         self.assertEqual(args.max_results, 50)
         self.assertEqual(args.limit, 5)
 
-    def test_parse_days_parameter(self):
-        parser = parse_args()
-        args = parser.parse_args(['--fetch', '--days', '3'])
-        self.assertEqual(args.days, 3)
-
-    def test_parse_max_results_parameter(self):
-        parser = parse_args()
-        args = parser.parse_args(['--fetch', '--max-results', '100'])
-        self.assertEqual(args.max_results, 100)
-
-    def test_parse_limit_parameter(self):
-        parser = parse_args()
-        args = parser.parse_args(['--fetch', '--limit', '10'])
-        self.assertEqual(args.limit, 10)
+    def test_parse_numeric_parameters(self):
+        for argv, attr, expected in [
+            (['--fetch', '--days', '3'], 'days', 3),
+            (['--fetch', '--max-results', '100'], 'max_results', 100),
+            (['--fetch', '--limit', '10'], 'limit', 10),
+        ]:
+            with self.subTest(argv=argv):
+                args = self.parser.parse_args(argv)
+                self.assertEqual(getattr(args, attr), expected)
 
 
 class TestMainFunction(unittest.TestCase):
