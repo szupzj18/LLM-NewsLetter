@@ -1,11 +1,11 @@
 import abc
 import html
-from typing import Any, List, Optional
+from typing import Any, Dict, List, Optional
 
 import requests
 
 from .models import Article
-from .translator import Translator, NoOpTranslator
+from .translator import NoOpTranslator, Translator
 
 
 class Notifier(abc.ABC):
@@ -24,41 +24,42 @@ class Notifier(abc.ABC):
 
 
 class ArticleNotifier(Notifier, abc.ABC):
-    """Shared behavior for article-based notifiers."""
+    """Shared helpers for article notifiers."""
 
-    HEADING_HN = "🚀 Hacker News 热门讨论"
-    HEADING_ARXIV = "✨ New ML/DL Papers Found! ✨"
-    HEADING_DEFAULT = "📢 New Articles"
-
-    def __init__(self, translator: Optional[Translator] = None):
+    def __init__(
+        self,
+        translator: Optional[Translator] = None,
+        style: str = "detailed",
+        message_format: str = "text",
+    ):
         self.translator = translator or NoOpTranslator()
-
-    def send(self, articles: List[Article]) -> None:
-        """Sends a list of articles as a notification."""
-        if not articles:
-            self._send_no_article_reminder()
-            return
-
-        message = self._format_message(articles)
-        self._send_message(message)
+        self.style = style
+        self.message_format = message_format
 
     def _truncate_summary(self, summary: str, max_length: int = 300) -> str:
         """Truncates a summary to a maximum length."""
         if not summary or len(summary) <= max_length:
             return summary
-        return summary[:max_length].rsplit(' ', 1)[0] + "..."
+        return summary[:max_length].rsplit(" ", 1)[0] + "..."
 
     def _infer_source(self, articles: List[Article]) -> str:
         if not articles:
             return "unknown"
         return articles[0].metadata.get("source", "unknown")
 
-    def _heading_for_source(self, source: str) -> str:
+    def _heading_for_source_html(self, source: str) -> str:
         if source == "hn":
-            return self.HEADING_HN
+            return "🚀 <b>Hacker News 热门讨论</b>"
         if source == "arxiv":
-            return self.HEADING_ARXIV
-        return self.HEADING_DEFAULT
+            return "✨ <b>New ML/DL Papers Found!</b> ✨"
+        return "📢 <b>New Articles</b>"
+
+    def _heading_for_source_plain(self, source: str) -> str:
+        if source == "hn":
+            return "🚀 Hacker News 热门讨论"
+        if source == "arxiv":
+            return "✨ New ML/DL Papers Found! ✨"
+        return "📢 New Articles"
 
     def _is_default_hn_summary(self, article: Article) -> bool:
         """Check if article is a HN story with the default summary."""
@@ -67,32 +68,20 @@ class ArticleNotifier(Notifier, abc.ABC):
             and article.summary == "Hacker News story"
         )
 
-    @abc.abstractmethod
-    def _format_message(self, articles: List[Article]) -> Any:
-        """Formats articles into a notifier-specific payload."""
-        raise NotImplementedError
-
-    @abc.abstractmethod
-    def _send_no_article_reminder(self):
-        """Sends a reminder payload when there are no new articles."""
-        raise NotImplementedError
-
-    @abc.abstractmethod
-    def _send_message(self, message: Any):
-        """Sends a notifier-specific payload."""
-        raise NotImplementedError
-
 
 class TelegramNotifier(ArticleNotifier):
     """
     A class to send notifications to a Telegram chat.
     """
 
-    HEADING_HN = "🚀 <b>Hacker News 热门讨论</b>"
-    HEADING_ARXIV = "✨ <b>New ML/DL Papers Found!</b> ✨"
-    HEADING_DEFAULT = "📢 <b>New Articles</b>"
-
-    def __init__(self, bot_token: str, chat_id: str, translator: Optional[Translator] = None):
+    def __init__(
+        self,
+        bot_token: str,
+        chat_id: str,
+        translator: Optional[Translator] = None,
+        style: str = "detailed",
+        message_format: str = "text",
+    ):
         """
         Initializes the TelegramNotifier.
 
@@ -104,18 +93,76 @@ class TelegramNotifier(ArticleNotifier):
         self.bot_token = bot_token
         self.chat_id = chat_id
         self.api_url = f"https://api.telegram.org/bot{self.bot_token}/sendMessage"
-        super().__init__(translator=translator)
+        super().__init__(translator=translator, style=style, message_format=message_format)
+
+    def send(self, articles: List[Article]) -> None:
+        """
+        Sends a list of articles as a notification.
+
+        Args:
+            articles: A list of Article objects.
+        """
+        if not articles:
+            self._send_no_article_reminder()
+            return
+
+        if self.message_format == "markdown":
+            message = self._format_message_markdown_v2(articles)
+            self._send_message(message, parse_mode="MarkdownV2")
+            return
+
+        message = self._format_message_html(articles)
+        self._send_message(message, parse_mode="HTML")
 
     def _escape_html(self, text: str) -> str:
         """Escapes text for Telegram's HTML parser."""
         return html.escape(text)
 
-    def _format_message(self, articles: List[Article]) -> str:
+    def _escape_markdown_v2(self, text: str) -> str:
+        """
+        Escapes text for Telegram MarkdownV2.
+        Ref: https://core.telegram.org/bots/api#markdownv2-style
+        """
+        if text is None:
+            return ""
+        # Backslash must be escaped first.
+        escaped = text.replace("\\", "\\\\")
+        for ch in [
+            "_",
+            "*",
+            "[",
+            "]",
+            "(",
+            ")",
+            "~",
+            "`",
+            ">",
+            "#",
+            "+",
+            "-",
+            "=",
+            "|",
+            "{",
+            "}",
+            ".",
+            "!",
+        ]:
+            escaped = escaped.replace(ch, f"\\{ch}")
+        return escaped
+
+    @staticmethod
+    def _escape_markdown_v2_url(url: str) -> str:
+        """Escape characters that are special in MarkdownV2 inline URLs."""
+        if url is None:
+            return ""
+        return url.replace("\\", "\\\\").replace(")", "\\)")
+
+    def _format_message_html(self, articles: List[Article]) -> str:
         """
         Formats a list of articles into a single HTML message string.
         """
         source = self._infer_source(articles)
-        heading = self._heading_for_source(source)
+        heading = self._heading_for_source_html(source)
         message = f"{heading}\n\n"
         for article in articles:
             title = self._escape_html(article.title)
@@ -123,7 +170,11 @@ class TelegramNotifier(ArticleNotifier):
             message += f'📄 <b><a href="{article.link}">{title}</a></b>\n'
             if title_zh != title:
                 message += f"📄 <b>{title_zh}</b>\n"
-            if article.summary and not self._is_default_hn_summary(article):
+            if (
+                self.style != "compact"
+                and article.summary
+                and not self._is_default_hn_summary(article)
+            ):
                 summary = self._truncate_summary(article.summary)
                 summary_escaped = self._escape_html(summary)
                 summary_zh = self._escape_html(self.translator.translate(summary))
@@ -133,19 +184,51 @@ class TelegramNotifier(ArticleNotifier):
             message += "\n"
         return message
 
-    def _send_no_article_reminder(self):
-        message = "📭 <b>No new articles this time.</b>"
-        self._send_message(message)
+    def _format_message_markdown_v2(self, articles: List[Article]) -> str:
+        source = self._infer_source(articles)
+        heading_plain = self._heading_for_source_plain(source)
+        heading = f"*{self._escape_markdown_v2(heading_plain)}*"
 
-    def _send_message(self, message: str):
+        parts: List[str] = [heading, ""]
+        for article in articles:
+            title = self._escape_markdown_v2(article.title)
+            link = self._escape_markdown_v2_url(article.link)
+            parts.append(f"📄 [{title}]({link})")
+
+            title_zh_raw = self.translator.translate(article.title)
+            if title_zh_raw and title_zh_raw != article.title:
+                parts.append(f"📄 *{self._escape_markdown_v2(title_zh_raw)}*")
+
+            if (
+                self.style != "compact"
+                and article.summary
+                and not self._is_default_hn_summary(article)
+            ):
+                summary = self._truncate_summary(article.summary)
+                parts.append(f"📝 {self._escape_markdown_v2(summary)}")
+
+                summary_zh_raw = self.translator.translate(summary)
+                if summary_zh_raw and summary_zh_raw != summary:
+                    parts.append(f"📝 {self._escape_markdown_v2(summary_zh_raw)}")
+
+            parts.append("")  # blank line between articles
+
+        return "\n".join(parts).rstrip() + "\n"
+
+    def _send_no_article_reminder(self):
+        if self.message_format == "markdown":
+            message = "*📭 No new articles this time\\.*\n"
+            self._send_message(message, parse_mode="MarkdownV2")
+            return
+
+        message = "📭 <b>No new articles this time.</b>"
+        self._send_message(message, parse_mode="HTML")
+
+    def _send_message(self, message: str, parse_mode: str):
         """
         Sends a message to the Telegram chat.
         """
-        payload = {
-            'chat_id': self.chat_id,
-            'text': message,
-            'parse_mode': 'HTML'
-        }
+        payload = {"chat_id": self.chat_id, "text": message, "parse_mode": parse_mode}
         try:
             response = requests.post(self.api_url, json=payload)
             response.raise_for_status()
@@ -158,7 +241,13 @@ class WebhookNotifier(ArticleNotifier):
     A class to send notifications via a webhook.
     """
 
-    def __init__(self, webhook_url: str, translator: Optional[Translator] = None):
+    def __init__(
+        self,
+        webhook_url: str,
+        translator: Optional[Translator] = None,
+        style: str = "detailed",
+        message_format: str = "text",
+    ):
         """
         Initializes the WebhookNotifier.
 
@@ -166,48 +255,135 @@ class WebhookNotifier(ArticleNotifier):
             webhook_url: The webhook URL to send messages to.
             translator: Optional translator for translating content.
         """
+        if not self._is_feishu_webhook(webhook_url):
+            raise ValueError(
+                "Only Feishu/Lark webhook is supported. "
+                "Expected URL containing '/open-apis/bot/v2/hook/'."
+            )
         self.webhook_url = webhook_url
-        super().__init__(translator=translator)
+        super().__init__(translator=translator, style=style, message_format=message_format)
 
-    def _format_message(self, articles: List[Article]) -> dict:
+    def send(self, articles: List[Article]) -> None:
         """
-        Formats a list of articles into a single message string for Feishu.
+        Sends a list of articles as a notification.
+
+        Args:
+            articles: A list of Article objects.
         """
+        if not articles:
+            self._send_no_article_reminder()
+            return
+
+        payload = self._build_payload(articles)
+        self._send_message(payload)
+
+    @staticmethod
+    def _is_feishu_webhook(webhook_url: str) -> bool:
+        url = (webhook_url or "").lower()
+        return (
+            "open.feishu.cn/open-apis/bot/v2/hook" in url
+            or "open.larksuite.com/open-apis/bot/v2/hook" in url
+        )
+
+    def _format_text(self, articles: List[Article]) -> str:
         source = self._infer_source(articles)
-        heading = self._heading_for_source(source)
+        heading = self._heading_for_source_plain(source)
         text_content = f"{heading}\n\n"
+
         for article in articles:
             title = article.title
             title_zh = self.translator.translate(article.title)
             text_content += f"📄 {title}\n"
-            if title_zh != title:
+            if title_zh and title_zh != title:
                 text_content += f"📄 {title_zh}\n"
             text_content += f"🔗 {article.link}\n"
-            if article.summary and not self._is_default_hn_summary(article):
+            if (
+                self.style != "compact"
+                and article.summary
+                and not self._is_default_hn_summary(article)
+            ):
                 summary = self._truncate_summary(article.summary)
                 summary_zh = self.translator.translate(summary)
                 text_content += f"📝 {summary}\n"
-                if summary_zh != summary:
+                if summary_zh and summary_zh != summary:
                     text_content += f"📝 {summary_zh}\n"
             text_content += "\n"
 
+        return text_content
+
+    def _build_payload(self, articles: List[Article]) -> Dict[str, Any]:
+        if self.message_format == "markdown":
+            # Feishu/Lark doesn't support raw Markdown; use "post" (rich text)
+            # to provide Markdown-like rendering (links, paragraphs).
+            return self._build_feishu_post_payload(articles)
+
+        # Text mode (Feishu/Lark "text")
+        text = self._format_text(articles)
+        return {"msg_type": "text", "content": {"text": text}}
+
+    def _build_feishu_post_payload(self, articles: List[Article]) -> Dict[str, Any]:
+        """
+        Build a Feishu/Lark "post" payload which supports rich text (links, basic emphasis).
+        """
+        source = self._infer_source(articles)
+        title = self._heading_for_source_plain(source)
+
+        content: List[List[Dict[str, Any]]] = []
+
+        for article in articles:
+            # Title with link
+            content.append([{"tag": "a", "text": f"📄 {article.title}", "href": article.link}])
+
+            title_zh = self.translator.translate(article.title)
+            if title_zh and title_zh != article.title:
+                content.append([{"tag": "text", "text": f"📄 {title_zh}"}])
+
+            if (
+                self.style != "compact"
+                and article.summary
+                and not self._is_default_hn_summary(article)
+            ):
+                summary = self._truncate_summary(article.summary)
+                content.append([{"tag": "text", "text": f"📝 {summary}"}])
+                summary_zh = self.translator.translate(summary)
+                if summary_zh and summary_zh != summary:
+                    content.append([{"tag": "text", "text": f"📝 {summary_zh}"}])
+
+            # Blank line between items
+            content.append([{"tag": "text", "text": ""}])
+
         return {
-            "msg_type": "text",
+            "msg_type": "post",
             "content": {
-                "text": text_content
-            }
+                "post": {
+                    "zh_cn": {
+                        "title": title,
+                        "content": content,
+                    }
+                }
+            },
         }
 
     def _send_no_article_reminder(self):
-        message = {
-            "msg_type": "text",
-            "content": {
-                "text": "📭 No new articles this time."
+        if self.message_format == "markdown":
+            payload = {
+                "msg_type": "post",
+                "content": {
+                    "post": {
+                        "zh_cn": {
+                            "title": "📭 No new articles this time.",
+                            "content": [[{"tag": "text", "text": "📭 No new articles this time."}]],
+                        }
+                    }
+                },
             }
-        }
-        self._send_message(message)
+            self._send_message(payload)
+            return
 
-    def _send_message(self, message: dict):
+        payload = {"msg_type": "text", "content": {"text": "📭 No new articles this time."}}
+        self._send_message(payload)
+
+    def _send_message(self, message: Dict[str, Any]):
         """
         Sends a message to the webhook.
         """

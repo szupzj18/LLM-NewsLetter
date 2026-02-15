@@ -167,7 +167,7 @@ class TestCreateNotifier(unittest.TestCase):
         self.assertIsNone(notifier)
 
     def test_creates_webhook_notifier(self):
-        notifier = create_notifier("webhook", "http://webhook.com")
+        notifier = create_notifier("webhook", "https://open.feishu.cn/open-apis/bot/v2/hook/test")
         self.assertIsInstance(notifier, WebhookNotifier)
 
     def test_returns_none_for_webhook_without_url(self):
