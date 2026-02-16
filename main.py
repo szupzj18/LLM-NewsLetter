@@ -52,6 +52,63 @@ def resolve_notifiers(notifier_arg, webhook_url):
     return [notifier_arg]
 
 
+def build_fetch_request(args):
+    """Build search query and fetch kwargs from CLI arguments."""
+    query = "cat:cs.LG" if args.source == "arxiv" else ""
+    fetch_kwargs = {"max_results": args.max_results}
+    days = getattr(args, "days", None)
+    if args.source == "arxiv" and days is not None:
+        fetch_kwargs["days"] = days
+    return query, fetch_kwargs
+
+
+def fetch_articles_for_args(args):
+    """Fetch articles based on source-specific CLI arguments."""
+    fetcher = get_fetcher_for_source(args.source)
+    query, fetch_kwargs = build_fetch_request(args)
+    return fetcher.fetch_articles(query, **fetch_kwargs)
+
+
+def notify_no_articles_if_needed(
+    args,
+    webhook_url,
+    translator=None,
+    skip_notify=False,
+    notify_style="detailed",
+    message_format="text",
+):
+    """Send a reminder when no articles are fetched and notifications are enabled."""
+    if skip_notify:
+        return
+    notifiers = resolve_notifiers(args.notifier, webhook_url)
+    if notifiers:
+        print("Sending reminder notification.")
+        kwargs = {"translator": translator}
+        if notify_style != "detailed":
+            kwargs["style"] = notify_style
+        if message_format != "text":
+            kwargs["message_format"] = message_format
+        broadcast_notifications([], notifiers, webhook_url, **kwargs)
+
+
+def save_articles_to_json(articles, json_output):
+    """Persist fetched articles to JSON storage."""
+    storage = JsonStorage()
+    ensure_dir(json_output)
+    storage.save_articles(articles, json_output)
+    print(f"Articles saved to {json_output}")
+
+
+def limit_articles_for_notification(articles, limit):
+    """Apply notification limit while preserving existing CLI semantics."""
+    articles_to_notify = articles[:limit] if limit is not None else articles
+    if limit is not None and len(articles) > len(articles_to_notify):
+        print(
+            f"Limiting notification to {len(articles_to_notify)} of {len(articles)} articles."
+        )
+    return articles_to_notify
+
+
 def ensure_dir(file_path):
     """Ensure the directory for a file path exists."""
     dir_path = os.path.dirname(file_path)
@@ -182,37 +239,24 @@ def handle_fetch(
         translator: Optional translator for translating content.
         skip_notify: If True, skip sending notifications (used when --notify is also specified).
     """
-    fetcher = get_fetcher_for_source(args.source)
-    query = "cat:cs.LG" if args.source == "arxiv" else ""
-    
-    # Pass days parameter for date filtering (only for arxiv)
-    days = getattr(args, 'days', None)
-    if args.source == "arxiv" and days is not None:
-        articles = fetcher.fetch_articles(query, max_results=args.max_results, days=days)
-    else:
-        articles = fetcher.fetch_articles(query, max_results=args.max_results)
+    articles = fetch_articles_for_args(args)
 
     if not articles:
         print("No articles fetched.")
-        if not skip_notify:
-            notifiers = resolve_notifiers(args.notifier, webhook_url)
-            if notifiers:
-                print("Sending reminder notification.")
-                kwargs = {"translator": translator}
-                if notify_style != "detailed":
-                    kwargs["style"] = notify_style
-                if message_format != "text":
-                    kwargs["message_format"] = message_format
-                broadcast_notifications([], notifiers, webhook_url, **kwargs)
+        notify_no_articles_if_needed(
+            args,
+            webhook_url,
+            translator=translator,
+            skip_notify=skip_notify,
+            notify_style=notify_style,
+            message_format=message_format,
+        )
         return
 
     print(f"Successfully fetched {len(articles)} articles from {args.source}.")
 
     # Store articles
-    storage = JsonStorage()
-    ensure_dir(args.json_output)
-    storage.save_articles(articles, args.json_output)
-    print(f"Articles saved to {args.json_output}")
+    save_articles_to_json(articles, args.json_output)
 
     # Send notifications only if --notify is not also specified
     if skip_notify:
@@ -224,9 +268,7 @@ def handle_fetch(
     
     # Limit the number of articles to notify
     limit = getattr(args, 'limit', 5)
-    articles_to_notify = articles[:limit] if limit else articles
-    if len(articles) > len(articles_to_notify):
-        print(f"Limiting notification to {len(articles_to_notify)} of {len(articles)} articles.")
+    articles_to_notify = limit_articles_for_notification(articles, limit)
     
     kwargs = {"translator": translator}
     if notify_style != "detailed":
