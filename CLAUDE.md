@@ -85,3 +85,13 @@ python3 -m unittest discover tests
 -   All notifiers inherit from `Notifier` abstract base class
 -   All translators inherit from `Translator` abstract base class
 -   Use factory functions (e.g., `create_translator()`) for creating instances with configuration
+
+## Documentation maintenance
+
+When making code changes, check whether `Agents.md` needs to be updated. Specifically:
+
+-   **Adding/removing/renaming a core module** — update the "How to Extend the Project" and "Where to Find Things" sections
+-   **Changing extension patterns** (new ABC, new protocol, new factory) — update the "Key Design Patterns" section
+-   **Changing error handling or security conventions** — update the "Coding Rules" section
+
+Do NOT duplicate content that already lives in this file (CLAUDE.md). Agents.md should only contain design patterns, extension guides, and coding rules that help agents modify the codebase.
