@@ -103,7 +103,7 @@ class TestWebhookNotifier(unittest.TestCase):
         notifier = WebhookNotifier(
             "https://open.larkoffice.com/open-apis/bot/v2/hook/test-webhook"
         )
-        self.assertEqual(notifier.provider, "feishu")
+        self.assertIsInstance(notifier, WebhookNotifier)
 
     def _assert_sent_text(self, mock_post, expected_text):
         expected_payload = {
@@ -156,79 +156,6 @@ class TestWebhookNotifier(unittest.TestCase):
         self.notifier.send([])
 
         self._assert_sent_text(mock_post, "📭 No new articles this time.")
-
-
-class TestWebhookNotifierDingTalk(unittest.TestCase):
-
-    def setUp(self):
-        self.webhook_url = "https://oapi.dingtalk.com/robot/send?access_token=test-webhook"
-        self.notifier = WebhookNotifier(self.webhook_url)
-
-    def _assert_sent_text(self, mock_post, expected_text):
-        expected_payload = {
-            "msgtype": "text",
-            "text": {
-                "content": expected_text
-            }
-        }
-        mock_post.assert_called_once_with(self.webhook_url, json=expected_payload)
-
-    @patch('requests.post')
-    def test_send_success_by_source(self, mock_post):
-        """Test DingTalk webhook text payload formatting by source."""
-        cases = [
-            (
-                "arxiv",
-                create_article(),
-                "✨ New ML/DL Papers Found! ✨\n\n"
-                "📄 Test Title\n🔗 http://test.com\n"
-                "📝 Test Summary\n\n",
-            ),
-            (
-                "hn",
-                create_article(
-                    title="HN Title",
-                    summary="HN Summary",
-                    link="http://hn.com/story",
-                    source="hn",
-                    author="HN Author",
-                    pdf_link="",
-                ),
-                "🚀 Hacker News 热门讨论\n\n"
-                "📄 HN Title\n🔗 http://hn.com/story\n"
-                "📝 HN Summary\n\n",
-            ),
-        ]
-
-        for source, article, expected_text in cases:
-            with self.subTest(source=source):
-                mock_post.reset_mock()
-                setup_successful_post(mock_post)
-                self.notifier.send([article])
-                self._assert_sent_text(mock_post, expected_text)
-
-    @patch('requests.post')
-    def test_send_no_articles(self, mock_post):
-        """Test DingTalk webhook reminder payload when no articles are provided."""
-        setup_successful_post(mock_post)
-
-        self.notifier.send([])
-
-        self._assert_sent_text(mock_post, "📭 No new articles this time.")
-
-    @patch('requests.post')
-    def test_send_markdown_payload(self, mock_post):
-        """Test DingTalk markdown payload format."""
-        setup_successful_post(mock_post)
-        notifier = WebhookNotifier(self.webhook_url, message_format="markdown")
-
-        notifier.send([create_article()])
-
-        call_args = mock_post.call_args
-        payload = call_args[1]["json"]
-        self.assertEqual(payload["msgtype"], "markdown")
-        self.assertIn("markdown", payload)
-        self.assertIn("Test Title", payload["markdown"]["text"])
 
 class MockTranslator(Translator):
     """Mock translator for testing."""

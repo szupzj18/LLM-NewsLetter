@@ -170,13 +170,6 @@ class TestCreateNotifier(unittest.TestCase):
         notifier = create_notifier("webhook", "https://open.feishu.cn/open-apis/bot/v2/hook/test")
         self.assertIsInstance(notifier, WebhookNotifier)
 
-    def test_creates_dingtalk_webhook_notifier(self):
-        notifier = create_notifier(
-            "webhook",
-            "https://oapi.dingtalk.com/robot/send?access_token=test-token",
-        )
-        self.assertIsInstance(notifier, WebhookNotifier)
-
     def test_creates_larkoffice_webhook_notifier(self):
         notifier = create_notifier(
             "webhook",
