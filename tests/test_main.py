@@ -170,6 +170,13 @@ class TestCreateNotifier(unittest.TestCase):
         notifier = create_notifier("webhook", "https://open.feishu.cn/open-apis/bot/v2/hook/test")
         self.assertIsInstance(notifier, WebhookNotifier)
 
+    def test_creates_larkoffice_webhook_notifier(self):
+        notifier = create_notifier(
+            "webhook",
+            "https://open.larkoffice.com/open-apis/bot/v2/hook/test-token",
+        )
+        self.assertIsInstance(notifier, WebhookNotifier)
+
     def test_returns_none_for_webhook_without_url(self):
         notifier = create_notifier("webhook", None)
         self.assertIsNone(notifier)

@@ -14,7 +14,7 @@
   - ✅ 可选使用 DeepL API（翻译质量更高）
 - **多渠道通知支持**：
   - ✅ Telegram Bot 通知
-  - ✅ Webhook 通知（支持飞书、钉钉等）
+  - ✅ Webhook 通知（支持飞书/Lark）
   - ✅ 同时向多个渠道发送通知
 - **日期过滤**：只获取指定天数内发布的文章，完全无状态，避免重复推送。
 - 将获取的文章列表存储在本地 JSON 文件中。
@@ -83,9 +83,11 @@
       export TELEGRAM_CHAT_ID="YOUR_CHAT_ID"
       ```
 
-    ### Webhook 通知（飞书、钉钉等）
+    ### Webhook 通知（飞书/Lark）
 
-    - 在飞书/钉钉群中添加自定义机器人，获取 Webhook URL。
+    - 在飞书/Lark 群中添加自定义机器人，获取 Webhook URL。
+    - 当前支持 URL 形态：包含 `/open-apis/bot/v2/hook/`
+      （例如 `open.feishu.cn`、`open.larksuite.com`、`open.larkoffice.com` 域名）。
     - 设置环境变量：
       ```bash
       export WEBHOOK_URL="YOUR_WEBHOOK_URL"
@@ -226,7 +228,7 @@ python3 -m unittest discover tests
 - **实现真正的数据库**：使用如 MongoDB 或 PostgreSQL 替换 JSON 文件存储。
 - **完善订阅与通知系统**：
     - ✅ **通过即时通讯工具接收通知** (已通过 Telegram 实现)
-    - ✅ **Webhook 通知支持** (已实现，支持飞书、钉钉等)
+    - ✅ **Webhook 通知支持** (已实现，支持飞书/Lark)
     - ✅ **多渠道同时通知** (已实现)
     - ✅ **自动翻译** (已实现，支持 DeepL 和免费 Google 翻译)
     - 允许用户通过关键词订阅。

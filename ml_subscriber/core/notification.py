@@ -283,6 +283,7 @@ class WebhookNotifier(ArticleNotifier):
         return (
             "open.feishu.cn/open-apis/bot/v2/hook" in url
             or "open.larksuite.com/open-apis/bot/v2/hook" in url
+            or "open.larkoffice.com/open-apis/bot/v2/hook" in url
         )
 
     def _format_text(self, articles: List[Article]) -> str:
