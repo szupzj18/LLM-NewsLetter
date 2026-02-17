@@ -255,12 +255,15 @@ class WebhookNotifier(ArticleNotifier):
             webhook_url: The webhook URL to send messages to.
             translator: Optional translator for translating content.
         """
-        if not self._is_feishu_webhook(webhook_url):
+        provider = self._detect_provider(webhook_url)
+        if not provider:
             raise ValueError(
-                "Only Feishu/Lark webhook is supported. "
-                "Expected URL containing '/open-apis/bot/v2/hook/'."
+                "Only Feishu/Lark and DingTalk webhook are supported. "
+                "Expected URL containing '/open-apis/bot/v2/hook/' (Feishu/Lark) "
+                "or '/robot/send' (DingTalk)."
             )
         self.webhook_url = webhook_url
+        self.provider = provider
         super().__init__(translator=translator, style=style, message_format=message_format)
 
     def send(self, articles: List[Article]) -> None:
@@ -278,12 +281,20 @@ class WebhookNotifier(ArticleNotifier):
         self._send_message(payload)
 
     @staticmethod
-    def _is_feishu_webhook(webhook_url: str) -> bool:
+    def _detect_provider(webhook_url: str) -> Optional[str]:
         url = (webhook_url or "").lower()
-        return (
+        if (
             "open.feishu.cn/open-apis/bot/v2/hook" in url
             or "open.larksuite.com/open-apis/bot/v2/hook" in url
-        )
+        ):
+            return "feishu"
+        if "oapi.dingtalk.com/robot/send" in url or "api.dingtalk.com/robot/send" in url:
+            return "dingtalk"
+        return None
+
+    @staticmethod
+    def _is_feishu_webhook(webhook_url: str) -> bool:
+        return WebhookNotifier._detect_provider(webhook_url) == "feishu"
 
     def _format_text(self, articles: List[Article]) -> str:
         source = self._infer_source(articles)
@@ -312,6 +323,12 @@ class WebhookNotifier(ArticleNotifier):
         return text_content
 
     def _build_payload(self, articles: List[Article]) -> Dict[str, Any]:
+        if self.provider == "dingtalk":
+            if self.message_format == "markdown":
+                return self._build_dingtalk_markdown_payload(articles)
+            text = self._format_text(articles)
+            return {"msgtype": "text", "text": {"content": text}}
+
         if self.message_format == "markdown":
             # Feishu/Lark doesn't support raw Markdown; use "post" (rich text)
             # to provide Markdown-like rendering (links, paragraphs).
@@ -320,6 +337,18 @@ class WebhookNotifier(ArticleNotifier):
         # Text mode (Feishu/Lark "text")
         text = self._format_text(articles)
         return {"msg_type": "text", "content": {"text": text}}
+
+    def _build_dingtalk_markdown_payload(self, articles: List[Article]) -> Dict[str, Any]:
+        source = self._infer_source(articles)
+        title = self._heading_for_source_plain(source)
+        text = self._format_text(articles)
+        return {
+            "msgtype": "markdown",
+            "markdown": {
+                "title": title,
+                "text": text,
+            },
+        }
 
     def _build_feishu_post_payload(self, articles: List[Article]) -> Dict[str, Any]:
         """
@@ -365,6 +394,25 @@ class WebhookNotifier(ArticleNotifier):
         }
 
     def _send_no_article_reminder(self):
+        if self.provider == "dingtalk":
+            if self.message_format == "markdown":
+                payload = {
+                    "msgtype": "markdown",
+                    "markdown": {
+                        "title": "No new articles this time.",
+                        "text": "📭 No new articles this time.",
+                    },
+                }
+                self._send_message(payload)
+                return
+
+            payload = {
+                "msgtype": "text",
+                "text": {"content": "📭 No new articles this time."},
+            }
+            self._send_message(payload)
+            return
+
         if self.message_format == "markdown":
             payload = {
                 "msg_type": "post",

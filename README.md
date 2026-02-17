@@ -83,9 +83,12 @@
       export TELEGRAM_CHAT_ID="YOUR_CHAT_ID"
       ```
 
-    ### Webhook 通知（飞书、钉钉等）
+    ### Webhook 通知（飞书/Lark、钉钉）
 
-    - 在飞书/钉钉群中添加自定义机器人，获取 Webhook URL。
+    - 在飞书/Lark 或钉钉群中添加自定义机器人，获取 Webhook URL。
+    - 当前支持以下 URL 形态：
+      - 飞书/Lark: 包含 `/open-apis/bot/v2/hook/`
+      - 钉钉: 包含 `/robot/send`（例如 `https://oapi.dingtalk.com/robot/send?...`）
     - 设置环境变量：
       ```bash
       export WEBHOOK_URL="YOUR_WEBHOOK_URL"
