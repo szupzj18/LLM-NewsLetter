@@ -286,6 +286,7 @@ class WebhookNotifier(ArticleNotifier):
         if (
             "open.feishu.cn/open-apis/bot/v2/hook" in url
             or "open.larksuite.com/open-apis/bot/v2/hook" in url
+            or "open.larkoffice.com/open-apis/bot/v2/hook" in url
         ):
             return "feishu"
         if "oapi.dingtalk.com/robot/send" in url or "api.dingtalk.com/robot/send" in url:

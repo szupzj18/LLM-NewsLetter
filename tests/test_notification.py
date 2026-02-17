@@ -99,6 +99,12 @@ class TestWebhookNotifier(unittest.TestCase):
         self.webhook_url = "https://open.feishu.cn/open-apis/bot/v2/hook/test-webhook"
         self.notifier = WebhookNotifier(self.webhook_url)
 
+    def test_accepts_larkoffice_webhook_url(self):
+        notifier = WebhookNotifier(
+            "https://open.larkoffice.com/open-apis/bot/v2/hook/test-webhook"
+        )
+        self.assertEqual(notifier.provider, "feishu")
+
     def _assert_sent_text(self, mock_post, expected_text):
         expected_payload = {
             "msg_type": "text",
