@@ -1,7 +1,16 @@
 
 import argparse
+import logging
 import os
 from dotenv import load_dotenv
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - [%(levelname)s] - %(name)s - %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S",
+)
+logger = logging.getLogger(__name__)
+
 from ml_subscriber.core.arxiv_fetcher import ArxivFetcher
 from ml_subscriber.core.hn_fetcher import HackerNewsFetcher
 from ml_subscriber.core.storage import JsonStorage
@@ -82,7 +91,7 @@ def notify_no_articles_if_needed(
         return
     notifiers = resolve_notifiers(args.notifier, webhook_url)
     if notifiers:
-        print("Sending reminder notification.")
+        logger.info("Sending reminder notification.")
         kwargs = {"translator": translator}
         if notify_style != "detailed":
             kwargs["style"] = notify_style
@@ -96,14 +105,14 @@ def save_articles_to_json(articles, json_output):
     storage = JsonStorage()
     ensure_dir(json_output)
     storage.save_articles(articles, json_output)
-    print(f"Articles saved to {json_output}")
+    logger.info(f"Articles saved to {json_output}")
 
 
 def limit_articles_for_notification(articles, limit):
     """Apply notification limit while preserving existing CLI semantics."""
     articles_to_notify = articles[:limit] if limit is not None else articles
     if limit is not None and len(articles) > len(articles_to_notify):
-        print(
+        logger.info(
             f"Limiting notification to {len(articles_to_notify)} of {len(articles)} articles."
         )
     return articles_to_notify
@@ -122,10 +131,10 @@ def get_translator():
     use_free = os.environ.get("USE_FREE_TRANSLATOR", "true").lower() == "true"
     
     if deepl_api_key:
-        print("DeepL translation enabled.")
+        logger.info("DeepL translation enabled.")
         return create_translator(deepl_api_key=deepl_api_key)
     elif use_free:
-        print("Free Google translation enabled.")
+        logger.info("Free Google translation enabled.")
         return create_translator(use_free=True)
     return create_translator(use_free=False)
 
@@ -142,7 +151,7 @@ def create_notifier(
         bot_token = os.environ.get("TELEGRAM_BOT_TOKEN")
         chat_id = os.environ.get("TELEGRAM_CHAT_ID")
         if not bot_token or not chat_id:
-            print("Telegram credentials not found in environment variables.")
+            logger.warning("Telegram credentials not found in environment variables.")
             return None
         return TelegramNotifier(
             bot_token,
@@ -154,7 +163,7 @@ def create_notifier(
     
     if notifier_type == "webhook":
         if not webhook_url:
-            print("Webhook URL not provided.")
+            logger.warning("Webhook URL not provided.")
             return None
         try:
             return WebhookNotifier(
@@ -164,10 +173,10 @@ def create_notifier(
                 message_format=message_format,
             )
         except ValueError as exc:
-            print(f"Webhook URL not supported: {exc}")
+            logger.error(f"Webhook URL not supported: {exc}")
             return None
     
-    print(f"Unknown notifier type: {notifier_type}")
+    logger.warning(f"Unknown notifier type: {notifier_type}")
     return None
 
 
@@ -191,9 +200,9 @@ def send_notification(
         return
     
     status = "Sending notification" if articles else "No new articles. Sending reminder"
-    print(f"{status} via {notifier_type}...")
+    logger.info(f"{status} via {notifier_type}...")
     notifier.send(articles)
-    print("Notification sent.")
+    logger.info("Notification sent.")
 
 
 def broadcast_notifications(
@@ -206,7 +215,7 @@ def broadcast_notifications(
 ):
     """Broadcast notifications to multiple channels."""
     if not notifier_types:
-        print("No notification channels configured.")
+        logger.warning("No notification channels configured.")
         return
     
     for notifier_type in notifier_types:
@@ -242,7 +251,7 @@ def handle_fetch(
     articles = fetch_articles_for_args(args)
 
     if not articles:
-        print("No articles fetched.")
+        logger.info("No articles fetched.")
         notify_no_articles_if_needed(
             args,
             webhook_url,
@@ -253,7 +262,7 @@ def handle_fetch(
         )
         return
 
-    print(f"Successfully fetched {len(articles)} articles from {args.source}.")
+    logger.info(f"Successfully fetched {len(articles)} articles from {args.source}.")
 
     # Store articles
     save_articles_to_json(articles, args.json_output)
@@ -284,13 +293,13 @@ def handle_visualize(args):
     articles = storage.load_articles(args.json_output)
     
     if not articles:
-        print("No articles found. Please run '--fetch' first to fetch articles.")
+        logger.warning("No articles found. Please run '--fetch' first to fetch articles.")
         return
 
     ensure_dir(args.output)
     visualizer = ArticleVisualizer()
     visualizer.generate_html(articles, args.output)
-    print(f"Visualization generated at {args.output}")
+    logger.info(f"Visualization generated at {args.output}")
 
 
 def handle_notify(
@@ -302,14 +311,14 @@ def handle_notify(
 ):
     """Handle --notify command: send notifications for stored articles."""
     if not args.notifier:
-        print("Please specify a notification channel with --notifier (telegram, webhook, or all)")
+        logger.warning("Please specify a notification channel with --notifier (telegram, webhook, or all)")
         return
 
     storage = JsonStorage()
     articles = storage.load_articles(args.json_output)
     
     if not articles:
-        print(f"No articles found at {args.json_output}. Please run '--fetch' first.")
+        logger.warning(f"No articles found at {args.json_output}. Please run '--fetch' first.")
         return
 
     notifiers = resolve_notifiers(args.notifier, webhook_url)
