@@ -53,7 +53,7 @@ class ArxivFetcher:
 
             return articles
         except requests.exceptions.RequestException as e:
-            logger.error(f"Error fetching data from ArXiv: {e}")
+            logger.exception("Error fetching data from ArXiv: %s", e)
             return []
 
     def _filter_by_date(self, articles: List[Article], days: int) -> List[Article]:

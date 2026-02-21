@@ -6,7 +6,15 @@ from typing import Optional
 
 import deepl
 from deep_translator import GoogleTranslator as GoogleTranslatorLib
-from deep_translator.exceptions import TranslationNotFound
+from deep_translator.exceptions import (
+    TranslationNotFound,
+    RequestError,
+    TooManyRequests,
+    NotValidPayload,
+    LanguageNotSupportedException,
+    InvalidSourceOrTargetLanguage,
+    ElementNotFoundInGetRequest,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -62,7 +70,7 @@ class DeepLTranslator(Translator):
             )
             return result.text
         except deepl.DeepLException as e:
-            logger.error(f"DeepL translation error: {e}")
+            logger.exception("DeepL translation error: %s", e)
             return text
 
 
@@ -98,8 +106,15 @@ class GoogleFreeTranslator(Translator):
         except TranslationNotFound:
             logger.warning(f"Google translation not found for: {text[:50]}...")
             return text
-        except Exception as e:
-            logger.error(f"Google translation error: {e}")
+        except (
+            RequestError,
+            TooManyRequests,
+            NotValidPayload,
+            LanguageNotSupportedException,
+            InvalidSourceOrTargetLanguage,
+            ElementNotFoundInGetRequest,
+        ) as e:
+            logger.exception("Google translation error: %s", e)
             return text
 
 

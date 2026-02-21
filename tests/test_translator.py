@@ -147,8 +147,9 @@ class TestGoogleFreeTranslator(unittest.TestCase):
     @patch('ml_subscriber.core.translator.GoogleTranslatorLib')
     def test_translate_error_returns_original(self, mock_translator_class):
         """Test that translation errors return the original text."""
+        from deep_translator.exceptions import RequestError
         mock_translator = MagicMock()
-        mock_translator.translate.side_effect = Exception("Network error")
+        mock_translator.translate.side_effect = RequestError("Network error")
         mock_translator_class.return_value = mock_translator
 
         translator = GoogleFreeTranslator()

@@ -4,11 +4,6 @@ import logging
 import os
 from dotenv import load_dotenv
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - [%(levelname)s] - %(name)s - %(message)s",
-    datefmt="%Y-%m-%d %H:%M:%S",
-)
 logger = logging.getLogger(__name__)
 
 from ml_subscriber.core.arxiv_fetcher import ArxivFetcher
@@ -173,7 +168,7 @@ def create_notifier(
                 message_format=message_format,
             )
         except ValueError as exc:
-            logger.error(f"Webhook URL not supported: {exc}")
+            logger.exception("Webhook URL not supported: %s", exc)
             return None
     
     logger.warning(f"Unknown notifier type: {notifier_type}")
@@ -368,6 +363,11 @@ def parse_args():
 
 def main():
     """Main entry point."""
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s - [%(levelname)s] - %(name)s - %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
+    )
     parser = parse_args()
     args = parser.parse_args()
 

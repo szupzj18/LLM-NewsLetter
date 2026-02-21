@@ -236,7 +236,7 @@ class TelegramNotifier(ArticleNotifier):
             response = requests.post(self.api_url, json=payload)
             response.raise_for_status()
         except requests.exceptions.RequestException as e:
-            logger.error(f"Error sending message to Telegram: {e}")
+            logger.exception("Error sending message to Telegram: %s", e)
 
 
 class WebhookNotifier(ArticleNotifier):
@@ -394,4 +394,4 @@ class WebhookNotifier(ArticleNotifier):
             response = requests.post(self.webhook_url, json=message)
             response.raise_for_status()
         except requests.exceptions.RequestException as e:
-            logger.error(f"Error sending message to webhook: {e}")
+            logger.exception("Error sending message to webhook: %s", e)
