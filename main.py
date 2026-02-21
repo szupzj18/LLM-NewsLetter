@@ -100,7 +100,7 @@ def save_articles_to_json(articles, json_output):
     storage = JsonStorage()
     ensure_dir(json_output)
     storage.save_articles(articles, json_output)
-    logger.info(f"Articles saved to {json_output}")
+    logger.info("Articles saved to %s", json_output)
 
 
 def limit_articles_for_notification(articles, limit):
@@ -108,7 +108,9 @@ def limit_articles_for_notification(articles, limit):
     articles_to_notify = articles[:limit] if limit is not None else articles
     if limit is not None and len(articles) > len(articles_to_notify):
         logger.info(
-            f"Limiting notification to {len(articles_to_notify)} of {len(articles)} articles."
+            "Limiting notification to %d of %d articles.",
+            len(articles_to_notify),
+            len(articles),
         )
     return articles_to_notify
 
@@ -168,10 +170,10 @@ def create_notifier(
                 message_format=message_format,
             )
         except ValueError as exc:
-            logger.exception("Webhook URL not supported: %s", exc)
+            logger.exception("Webhook URL not supported")
             return None
     
-    logger.warning(f"Unknown notifier type: {notifier_type}")
+    logger.warning("Unknown notifier type: %s", notifier_type)
     return None
 
 
@@ -195,7 +197,7 @@ def send_notification(
         return
     
     status = "Sending notification" if articles else "No new articles. Sending reminder"
-    logger.info(f"{status} via {notifier_type}...")
+    logger.info("%s via %s...", status, notifier_type)
     notifier.send(articles)
     logger.info("Notification sent.")
 
@@ -257,7 +259,7 @@ def handle_fetch(
         )
         return
 
-    logger.info(f"Successfully fetched {len(articles)} articles from {args.source}.")
+    logger.info("Successfully fetched %d articles from %s.", len(articles), args.source)
 
     # Store articles
     save_articles_to_json(articles, args.json_output)
@@ -294,7 +296,7 @@ def handle_visualize(args):
     ensure_dir(args.output)
     visualizer = ArticleVisualizer()
     visualizer.generate_html(articles, args.output)
-    logger.info(f"Visualization generated at {args.output}")
+    logger.info("Visualization generated at %s", args.output)
 
 
 def handle_notify(
@@ -313,7 +315,7 @@ def handle_notify(
     articles = storage.load_articles(args.json_output)
     
     if not articles:
-        logger.warning(f"No articles found at {args.json_output}. Please run '--fetch' first.")
+        logger.warning("No articles found at %s. Please run '--fetch' first.", args.json_output)
         return
 
     notifiers = resolve_notifiers(args.notifier, webhook_url)

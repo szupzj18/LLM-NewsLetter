@@ -25,7 +25,7 @@ class HackerNewsFetcher:
             response.raise_for_status()
             story_ids = response.json()[: max_results * 2]
         except requests.RequestException as exc:
-            logger.exception("Error fetching top stories from Hacker News: %s", exc)
+            logger.exception("Error fetching top stories from Hacker News")
             return []
 
         articles: List[Article] = []

@@ -11,6 +11,7 @@ from deep_translator.exceptions import (
     RequestError,
     TooManyRequests,
     NotValidPayload,
+    NotValidLength,
     LanguageNotSupportedException,
     InvalidSourceOrTargetLanguage,
     ElementNotFoundInGetRequest,
@@ -70,7 +71,7 @@ class DeepLTranslator(Translator):
             )
             return result.text
         except deepl.DeepLException as e:
-            logger.exception("DeepL translation error: %s", e)
+            logger.exception("DeepL translation error")
             return text
 
 
@@ -104,17 +105,18 @@ class GoogleFreeTranslator(Translator):
             result = translator.translate(text)
             return result if result else text
         except TranslationNotFound:
-            logger.warning(f"Google translation not found for: {text[:50]}...")
+            logger.warning("Google translation not found for: %s...", text[:50])
             return text
         except (
             RequestError,
             TooManyRequests,
             NotValidPayload,
+            NotValidLength,
             LanguageNotSupportedException,
             InvalidSourceOrTargetLanguage,
             ElementNotFoundInGetRequest,
         ) as e:
-            logger.exception("Google translation error: %s", e)
+            logger.exception("Google translation error")
             return text
 
 
