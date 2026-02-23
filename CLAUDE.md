@@ -51,14 +51,17 @@ The project uses Python's `unittest` framework. Tests are in `tests/` directory 
 # Fetch ArXiv papers and notify via Telegram
 python3 main.py --fetch --source arxiv --notifier telegram
 
-# Fetch Hacker News stories
-python3 main.py --fetch --source hn --json-output output/hn_articles.json
+# Fetch Hacker News stories from the last 3 days
+python3 main.py --fetch --source hn --days 3 --json-output output/hn_articles.json
+
+# Fetch ArXiv with compact markdown notifications (limit to 10)
+python3 main.py --fetch --source arxiv --limit 10 --notify-style compact --notify-format markdown
 
 # Generate HTML visualization
 python3 main.py --visualize --output output/articles.html
 
-# Send notifications for stored articles
-python3 main.py --notify --notifier all
+# Send notifications for stored articles overriding webhook URL
+python3 main.py --notify --notifier webhook --webhook-url "https://your-webhook-url"
 ```
 
 ### Running tests
@@ -75,7 +78,7 @@ python3 -m unittest discover tests
 |----------|-------------|
 | `TELEGRAM_BOT_TOKEN` | Telegram Bot API token |
 | `TELEGRAM_CHAT_ID` | Telegram chat ID for notifications |
-| `WEBHOOK_URL` | Feishu/Lark webhook URL |
+| `WEBHOOK_URL` | Feishu/Lark webhook URL (can be overridden with `--webhook-url`) |
 | `DEEPL_API_KEY` | DeepL API key (optional, for high-quality translation) |
 | `USE_FREE_TRANSLATOR` | Set to "false" to disable free Google translation |
 

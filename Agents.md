@@ -97,8 +97,10 @@ Quick lookup table. When in doubt, read the source file directly rather than rel
 | Want to change...       | Look in...                                           | How to find it                                                  |
 | ----------------------- | ---------------------------------------------------- | --------------------------------------------------------------- |
 | Article data model      | `models.py`                                          | `Article` dataclass                                             |
-| Notification formatting | `notification.py`                                    | Search for `_format_` prefix                                    |
+| Notification formatting | `notification.py`                                    | Search for `_format_` or `_escape_` prefixes                    |
 | CLI arguments           | `main.py`                                            | Search for `parse_args()`, or run `python3 main.py --help`      |
-| External API calls      | The fetcher or notifier file for that source/channel | Each owns its own HTTP logic                                    |
-| Translation config      | `translator.py`                                      | Search for `create_translator()`                                |
+| CLI options             | `main.py`                                            | Options like `--days`, `--limit`, `--notify-style`, `--notify-format` |
+| External API calls      | The fetcher or notifier file for that source/channel | Each owns its own HTTP logic, parameters like `max_item_age_days` |
+| Notifier configuration  | `notification.py`                                    | Check parameters like `style`, `message_format`                 |
+| Translation config      | `translator.py`                                      | Search for `create_translator()`, uses `target_lang`            |
 | Notifier wiring         | `main.py`                                            | Search for `create_notifier()` and `get_configured_notifiers()` |
