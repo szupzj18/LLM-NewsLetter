@@ -1,4 +1,4 @@
-# Agents.md
+# AGENTS.md
 
 Instructions for AI agents working with this codebase. For project facts (module descriptions, commands, env vars), see `CLAUDE.md`.
 
@@ -94,11 +94,11 @@ def test_something(self, mock_get):
 
 Quick lookup table. When in doubt, read the source file directly rather than relying on specific names listed here.
 
-| Want to change... | Look in... | How to find it |
-|---|---|---|
-| Article data model | `models.py` | `Article` dataclass |
-| Notification formatting | `notification.py` | Search for `_format_` prefix |
-| CLI arguments | `main.py` | Search for `parse_args()`, or run `python3 main.py --help` |
-| External API calls | The fetcher or notifier file for that source/channel | Each owns its own HTTP logic |
-| Translation config | `translator.py` | Search for `create_translator()` |
-| Notifier wiring | `main.py` | Search for `create_notifier()` and `get_configured_notifiers()` |
+| Want to change...       | Look in...                                           | How to find it                                                  |
+| ----------------------- | ---------------------------------------------------- | --------------------------------------------------------------- |
+| Article data model      | `models.py`                                          | `Article` dataclass                                             |
+| Notification formatting | `notification.py`                                    | Search for `_format_` prefix                                    |
+| CLI arguments           | `main.py`                                            | Search for `parse_args()`, or run `python3 main.py --help`      |
+| External API calls      | The fetcher or notifier file for that source/channel | Each owns its own HTTP logic                                    |
+| Translation config      | `translator.py`                                      | Search for `create_translator()`                                |
+| Notifier wiring         | `main.py`                                            | Search for `create_notifier()` and `get_configured_notifiers()` |
