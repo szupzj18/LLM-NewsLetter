@@ -1,10 +1,13 @@
 
+import logging
 import requests
 import xml.etree.ElementTree as ET
 from datetime import datetime, timedelta, timezone
 from typing import List, Optional
 
 from .models import Article
+
+logger = logging.getLogger(__name__)
 
 
 class ArxivFetcher:
@@ -50,7 +53,7 @@ class ArxivFetcher:
 
             return articles
         except requests.exceptions.RequestException as e:
-            print(f"Error fetching data from ArXiv: {e}")
+            logger.exception("Error fetching data from ArXiv")
             return []
 
     def _filter_by_date(self, articles: List[Article], days: int) -> List[Article]:

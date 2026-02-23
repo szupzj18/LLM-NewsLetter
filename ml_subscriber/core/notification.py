@@ -1,11 +1,14 @@
 import abc
 import html
+import logging
 from typing import Any, Dict, List, Optional
 
 import requests
 
 from .models import Article
 from .translator import NoOpTranslator, Translator
+
+logger = logging.getLogger(__name__)
 
 
 class Notifier(abc.ABC):
@@ -233,7 +236,7 @@ class TelegramNotifier(ArticleNotifier):
             response = requests.post(self.api_url, json=payload)
             response.raise_for_status()
         except requests.exceptions.RequestException as e:
-            print(f"Error sending message to Telegram: {e}")
+            logger.exception("Error sending message to Telegram")
 
 
 class WebhookNotifier(ArticleNotifier):
@@ -392,4 +395,4 @@ class WebhookNotifier(ArticleNotifier):
             response = requests.post(self.webhook_url, json=message)
             response.raise_for_status()
         except requests.exceptions.RequestException as e:
-            print(f"Error sending message to webhook: {e}")
+            logger.exception("Error sending message to webhook")

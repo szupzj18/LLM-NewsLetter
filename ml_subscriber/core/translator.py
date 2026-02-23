@@ -1,11 +1,23 @@
 """Translation module for translating article content."""
 
 import abc
+import logging
 from typing import Optional
 
 import deepl
 from deep_translator import GoogleTranslator as GoogleTranslatorLib
-from deep_translator.exceptions import TranslationNotFound
+from deep_translator.exceptions import (
+    TranslationNotFound,
+    RequestError,
+    TooManyRequests,
+    NotValidPayload,
+    NotValidLength,
+    LanguageNotSupportedException,
+    InvalidSourceOrTargetLanguage,
+    ElementNotFoundInGetRequest,
+)
+
+logger = logging.getLogger(__name__)
 
 
 class Translator(abc.ABC):
@@ -59,7 +71,7 @@ class DeepLTranslator(Translator):
             )
             return result.text
         except deepl.DeepLException as e:
-            print(f"DeepL translation error: {e}")
+            logger.exception("DeepL translation error")
             return text
 
 
@@ -93,10 +105,18 @@ class GoogleFreeTranslator(Translator):
             result = translator.translate(text)
             return result if result else text
         except TranslationNotFound:
-            print(f"Google translation not found for: {text[:50]}...")
+            logger.warning("Google translation not found for: %s...", text[:50])
             return text
-        except Exception as e:
-            print(f"Google translation error: {e}")
+        except (
+            RequestError,
+            TooManyRequests,
+            NotValidPayload,
+            NotValidLength,
+            LanguageNotSupportedException,
+            InvalidSourceOrTargetLanguage,
+            ElementNotFoundInGetRequest,
+        ) as e:
+            logger.exception("Google translation error")
             return text
 
 

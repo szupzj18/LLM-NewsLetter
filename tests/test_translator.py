@@ -6,6 +6,7 @@ from ml_subscriber.core.translator import (
     NoOpTranslator,
     create_translator
 )
+from deep_translator.exceptions import RequestError, TranslationNotFound
 
 
 class TestNoOpTranslator(unittest.TestCase):
@@ -148,13 +149,27 @@ class TestGoogleFreeTranslator(unittest.TestCase):
     def test_translate_error_returns_original(self, mock_translator_class):
         """Test that translation errors return the original text."""
         mock_translator = MagicMock()
-        mock_translator.translate.side_effect = Exception("Network error")
+        mock_translator.translate.side_effect = RequestError("Network error")
         mock_translator_class.return_value = mock_translator
 
         translator = GoogleFreeTranslator()
         result = translator.translate("Hello, world!")
 
         self.assertEqual(result, "Hello, world!")
+
+    @patch('ml_subscriber.core.translator.GoogleTranslatorLib')
+    @patch('ml_subscriber.core.translator.logger')
+    def test_translate_translation_not_found(self, mock_logger, mock_translator_class):
+        """Test that TranslationNotFound is logged as a warning and original text returned."""
+        mock_translator = MagicMock()
+        mock_translator.translate.side_effect = TranslationNotFound("Not found")
+        mock_translator_class.return_value = mock_translator
+
+        translator = GoogleFreeTranslator()
+        result = translator.translate("Hello, world!")
+
+        self.assertEqual(result, "Hello, world!")
+        mock_logger.warning.assert_called_once()
 
 
 class TestCreateTranslator(unittest.TestCase):

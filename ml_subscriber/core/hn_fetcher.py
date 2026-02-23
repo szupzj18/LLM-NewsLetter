@@ -1,9 +1,12 @@
+import logging
 import time
 from typing import List, Optional
 
 import requests
 
 from .models import Article
+
+logger = logging.getLogger(__name__)
 
 
 class HackerNewsFetcher:
@@ -22,7 +25,7 @@ class HackerNewsFetcher:
             response.raise_for_status()
             story_ids = response.json()[: max_results * 2]
         except requests.RequestException as exc:
-            print(f"Error fetching top stories from Hacker News: {exc}")
+            logger.exception("Error fetching top stories from Hacker News")
             return []
 
         articles: List[Article] = []
